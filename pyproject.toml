@@ -19,7 +19,8 @@ classifiers = [
 dependencies = [
     "astropy >= 6.1",
     "pandas >= 2.2",
-    "textual >= 0.77"
+    "textual >= 0.77",
+    "click >= 8.1",
 ]
 
 [project.scripts]

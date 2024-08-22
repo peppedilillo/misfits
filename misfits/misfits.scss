@@ -1,0 +1,23 @@
+#dialog {
+  height: 100%;
+  border: round $background;
+  padding: 0 0;
+}
+
+#control_bar {
+  layout: horizontal;
+  height: 5;
+  border: round $background;
+}
+
+#input_prompt {
+  height: 3;
+  width: 1fr;
+  border: round $background;
+}
+
+.arrows {
+  min-width: 5;
+  height: 3;
+  border: round $background;
+}
