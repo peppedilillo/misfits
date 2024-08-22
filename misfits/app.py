@@ -64,8 +64,8 @@ class MisfitsApp(App):
             DataFrameTable(),
             Container(
                 Input("Input prompt", id="input_prompt"),
-                Button("<", classes="arrows"),
-                Button(">", classes="arrows"),
+                Button("[ ◀─ ]", classes="arrows"),
+                Button("[ ─▶ ]", classes="arrows"),
                 id="control_bar",
             ),
             id="dialog",
@@ -88,7 +88,7 @@ class MisfitsApp(App):
 )
 def main(input_path: Path):
     app = MisfitsApp(input_path)
-    app.run()
+    app.run(inline=False)
 
 
 if __name__ == "__main__":
