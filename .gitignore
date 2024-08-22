@@ -1,0 +1,7 @@
+**/.DS_Store
+**/.idea
+**/__pycache__
+**/.ipynb_checkpoints
+**/.mypy-cache
+**/*.fits
+*venv*/
