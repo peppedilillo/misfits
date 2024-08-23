@@ -23,5 +23,13 @@ dependencies = [
     "click >= 8.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "textual-dev>=1.5",
+    "black>=24.8",
+    "isort>=5.13",
+    "mypy>=1.11",
+]
+
 [project.scripts]
 misfits = 'misfits.app:main'
