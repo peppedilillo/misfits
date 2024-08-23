@@ -1,23 +1,27 @@
+import asyncio
 from math import ceil
 from pathlib import Path
 
 from astropy.io import fits
-from astropy.io.fits.hdu.table import BinTableHDU, TableHDU
+from astropy.io.fits.hdu.table import BinTableHDU
+from astropy.io.fits.hdu.table import TableHDU
 from astropy.table import Table
 import click
 import pandas as pd
+from textual import work
 from textual.app import App
 from textual.app import ComposeResult
-from textual.containers import Container, ScrollableContainer
+from textual.containers import Container
+from textual.containers import ScrollableContainer
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
+from textual.widgets import Pretty
 from textual.widgets import Static
-from textual.widgets import TabbedContent, TabPane, Pretty
-from textual import work
-import asyncio
+from textual.widgets import TabbedContent
+from textual.widgets import TabPane
 
 
 class DataFrameTable(DataTable):
@@ -126,9 +130,7 @@ class HeaderDialog(Static):
         self.header = header
 
     def compose(self):
-        yield ScrollableContainer(
-            Pretty(self.header)
-        )
+        yield ScrollableContainer(Pretty(self.header))
 
 
 def get_fits_content(fits_path: str | Path) -> tuple[dict]:
@@ -181,7 +183,9 @@ class Misfits(App):
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
             if content["header"]:
-                await tabs.add_pane(TabPane(f"Header-{i}", HeaderDialog(content["header"])))
+                await tabs.add_pane(
+                    TabPane(f"Header-{i}", HeaderDialog(content["header"]))
+                )
             if content["type"] == "table":
                 await tabs.add_pane(TabPane(f"Table-{i}", TableDialog(content["data"])))
         tabs.loading = False
