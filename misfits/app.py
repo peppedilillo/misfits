@@ -1,15 +1,19 @@
-from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Static
-from textual.widgets import DataTable, Input, Button
-from textual.containers import Container
-from textual.validation import ValidationResult, Validator
-
-
-import pandas as pd
-import click
+from math import ceil
 from pathlib import Path
 
-from math import ceil
+import click
+import pandas as pd
+from textual.app import App
+from textual.app import ComposeResult
+from textual.containers import Container
+from textual.validation import ValidationResult
+from textual.validation import Validator
+from textual.widgets import Button
+from textual.widgets import DataTable
+from textual.widgets import Footer
+from textual.widgets import Header
+from textual.widgets import Input
+from textual.widgets import Static
 
 
 class DataFrameTable(DataTable):
@@ -82,10 +86,7 @@ class TableDialog(Static):
         self.page_tot = ceil(len(df) / page_len)
 
     def page_slice(self):
-        page = (
-            (self.page_no - 1) * self.page_len,
-            self.page_no * self.page_len
-        )
+        page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
         return slice(*page)
 
     def next_page(self):
