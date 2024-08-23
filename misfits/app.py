@@ -1,11 +1,14 @@
 from math import ceil
 from pathlib import Path
 
+from astropy.io import fits
+from astropy.io.fits.hdu.table import BinTableHDU, TableHDU
+from astropy.table import Table
 import click
 import pandas as pd
 from textual.app import App
 from textual.app import ComposeResult
-from textual.containers import Container
+from textual.containers import Container, ScrollableContainer
 from textual.validation import ValidationResult
 from textual.validation import Validator
 from textual.widgets import Button
@@ -14,16 +17,11 @@ from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Static
+from textual.widgets import TabbedContent, TabPane, Pretty
 
 
 class DataFrameTable(DataTable):
     """Display Pandas dataframe in DataTable widget."""
-
-    DEFAULT_CSS = """
-    DataFrameTable {
-        height: 1fr
-    }
-    """
 
     def add_df(self, df: pd.DataFrame):
         """Add DataFrame data to DataTable."""
@@ -39,10 +37,10 @@ class DataFrameTable(DataTable):
         # Redraw table with new dataframe
         self.add_df(df)
 
-    def _add_df_rows(self) -> None:
+    def _add_df_rows(self):
         return self._get_df_rows()
 
-    def _add_df_columns(self) -> None:
+    def _add_df_columns(self):
         return self._get_df_columns()
 
     def _get_df_rows(self) -> list[tuple]:
@@ -117,7 +115,6 @@ class TableDialog(Static):
                 Button("[ ─▶ ]", id="next_button"),
                 id="control_bar",
             ),
-            id="dialog",
         )
 
     def on_mount(self):
@@ -143,6 +140,37 @@ class TableDialog(Static):
         table.update_df(self.shown_df[self.page_slice()])
 
 
+class HeaderDialog(Static):
+    def __init__(self, header: dict):
+        super().__init__()
+        self.header = header
+
+    def compose(self):
+        yield ScrollableContainer(
+            Pretty(self.header)
+        )
+
+
+def get_fits_content(fits_path: str | Path) -> tuple[dict]:
+    def is_table(hdu):
+        return type(hdu) in [TableHDU, BinTableHDU]
+
+    def sanitize(table):
+        names = [name for name in table.colnames if len(table[name].shape) <= 1]
+        return table[names]
+
+    with fits.open(fits_path) as hdul:
+        content = tuple(
+            {
+                "type": "table" if is_table else "other",
+                "header": dict(hdu.header) if hdu.header else None,
+                "data": sanitize(Table(hdu.data)).to_pandas() if is_table else None,
+            }
+            for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
+        )
+    return content
+
+
 class Misfits(App):
     """Main app."""
 
@@ -151,13 +179,19 @@ class Misfits(App):
 
     def __init__(self, input_path: Path | str) -> None:
         super().__init__()
-        self.input_path = input_path
-        self.df = pd.read_csv(input_path)
+        self.fits_content = get_fits_content(input_path)
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
-        yield TableDialog(self.df)
+        with TabbedContent():
+            for i, content in enumerate(self.fits_content):
+                if content["header"]:
+                    with TabPane(f"Header-{i}"):
+                        yield HeaderDialog(content["header"])
+                if content["type"] == "table":
+                    with TabPane(f"Table-{i}"):
+                        yield TableDialog(content["data"])
         yield Footer()
 
     def action_toggle_dark(self) -> None:
@@ -176,5 +210,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits("/Users/peppedilillo/Dropbox/Progetti/fits-tui/BTC-2017min.csv")
+    app = Misfits("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz")
     app.run()

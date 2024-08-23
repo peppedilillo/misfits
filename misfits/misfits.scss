@@ -1,7 +1,7 @@
 TableDialog {
-  height: 100%;
+  height: 1fr;
   border: round $background;
-  padding: 0 1;
+  padding: 0 0;
 }
 
 #control_bar {
@@ -20,9 +20,14 @@ TableDialog {
 Button {
   min-width: 6;
   height: 1;
-  border: none ;
+  border: none;
 }
 
 DataFrameTable {
-  height: 1fr
+  height: 1fr;
+}
+
+TabPane {
+  padding: 0;
+  border: none;
 }
