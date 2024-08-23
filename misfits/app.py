@@ -9,8 +9,6 @@ import pandas as pd
 from textual.app import App
 from textual.app import ComposeResult
 from textual.containers import Container, ScrollableContainer
-from textual.validation import ValidationResult
-from textual.validation import Validator
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
@@ -18,6 +16,8 @@ from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Static
 from textual.widgets import TabbedContent, TabPane, Pretty
+from textual import work
+import asyncio
 
 
 class DataFrameTable(DataTable):
@@ -52,28 +52,6 @@ class DataFrameTable(DataTable):
         return tuple(self.df.columns.values.tolist())
 
 
-class DataframeMask(Validator):
-    def __init__(self, df: pd.DataFrame):
-        super().__init__()
-        self.df = df
-        self.filtered_df = df
-
-    def validate(self, value: str) -> ValidationResult:
-        """Check a string is equal to its reverse."""
-        try:
-            self.filtered_df = self.df.query(value) if value else self.df
-        except Exception as e:
-            return self.failure()
-        return self.success()
-
-    def get_result(self) -> pd.DataFrame:
-        return self.filtered_df
-
-    @staticmethod
-    def is_palindrome(value: str) -> bool:
-        return value == value[::-1]
-
-
 class TableDialog(Static):
     def __init__(self, df: pd.DataFrame, page_len: int = 100):
         super().__init__()
@@ -88,14 +66,12 @@ class TableDialog(Static):
         return slice(*page)
 
     def next_page(self):
-        """Add DataFrame data to DataTable."""
         if self.page_no < self.page_tot:
             self.page_no += 1
             table = self.query_one(DataFrameTable)
             table.update_df(self.shown_df[self.page_slice()])
 
     def back_page(self):
-        """Add DataFrame data to DataTable."""
         if self.page_no > 1:
             self.page_no -= 1
             table = self.query_one(DataFrameTable)
@@ -108,8 +84,6 @@ class TableDialog(Static):
                 Input(
                     placeholder=f"Example: {self.df.columns[-1]} > 42",
                     id="input_prompt",
-                    validate_on=["submitted"],
-                    validators=[DataframeMask(self.df)],
                 ),
                 Button("[ ◀─ ]", id="back_button"),
                 Button("[ ─▶ ]", id="next_button"),
@@ -129,14 +103,20 @@ class TableDialog(Static):
         elif button_id == "back_button":
             self.back_page()
 
-    def on_input_submitted(self, event: Input.Submitted):
-        if not event.validation_result.is_valid:
+    async def on_input_changed(self, event: Input.Submitted):
+        return self.filter_table(event.value)
+
+    @work(exclusive=True)
+    async def filter_table(self, query: str):
+        # noinspection PyBroadException
+        try:
+            filtered_df = await asyncio.to_thread(self.df.query, query)
+        except Exception as e:
             return
-        validator, *_ = event.input.validators
-        table = self.query_one(DataFrameTable)
-        self.shown_df = validator.filtered_df
+        self.shown_df = filtered_df
         self.page_no = 1
         self.page_tot = ceil(len(self.shown_df) / self.page_len)
+        table = self.query_one(DataFrameTable)
         table.update_df(self.shown_df[self.page_slice()])
 
 
@@ -179,24 +159,32 @@ class Misfits(App):
 
     def __init__(self, input_path: Path | str) -> None:
         super().__init__()
-        self.fits_content = get_fits_content(input_path)
+        self.input_path = input_path
+        self.fits_content = []
 
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
         yield Header()
-        with TabbedContent():
-            for i, content in enumerate(self.fits_content):
-                if content["header"]:
-                    with TabPane(f"Header-{i}"):
-                        yield HeaderDialog(content["header"])
-                if content["type"] == "table":
-                    with TabPane(f"Table-{i}"):
-                        yield TableDialog(content["data"])
+        yield TabbedContent()
         yield Footer()
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark
+
+    def on_mount(self):
+        self.fits_content = self.populate_tabs(self.input_path)
+
+    @work
+    async def populate_tabs(self, input_path):
+        tabs = self.query_one(TabbedContent)
+        tabs.loading = True
+        contents = await asyncio.to_thread(get_fits_content, input_path)
+        for i, content in enumerate(contents):
+            if content["header"]:
+                await tabs.add_pane(TabPane(f"Header-{i}", HeaderDialog(content["header"])))
+            if content["type"] == "table":
+                await tabs.add_pane(TabPane(f"Table-{i}", TableDialog(content["data"])))
+        tabs.loading = False
 
 
 @click.command()
