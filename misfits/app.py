@@ -1,5 +1,5 @@
 import asyncio
-from math import ceil
+from math import ceil, log10
 from pathlib import Path
 
 from astropy.io import fits
@@ -11,7 +11,7 @@ import pandas as pd
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
-from textual.containers import Container
+from textual.containers import Container, Vertical, Horizontal
 from textual.containers import ScrollableContainer
 from textual.widgets import Button
 from textual.widgets import DataTable
@@ -21,7 +21,9 @@ from textual.widgets import Input
 from textual.widgets import Pretty
 from textual.widgets import Static
 from textual.widgets import TabbedContent
-from textual.widgets import TabPane
+from textual.widgets import TabPane, TextArea, Log, Label
+from textual.widget import Widget
+from textual.app import RenderResult
 
 
 class DataFrameTable(DataTable):
@@ -55,6 +57,34 @@ class DataFrameTable(DataTable):
         """Extract column names from dataframe."""
         return tuple(self.df.columns.values.tolist())
 
+    def on_mount(self):
+        self.border_title = "Data"
+        self.cursor_type = "row"
+
+
+class PageControls(Static):
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="pagecontrol_container"):
+            yield Button("[  |◀─  ]", classes="arrow_button", id="first_button")
+            yield Button("[  ◀─  ]", classes="arrow_button", id="back_button")
+            yield Label("Hello", id="page_display")
+            yield Button("[  ─▶  ]", classes="arrow_button", id="next_button")
+            yield Button("[  ─▶|  ]", classes="arrow_button", id="last_button")
+
+    def on_mount(self):
+        self.border_title = "Pages"
+
+
+class InputFilter(Static):
+    def compose(self) -> ComposeResult:
+        yield Container(Input(
+            placeholder=f"Enter query (e.g. `COL1 > 42 &  COL2 == 3)`",
+            id="input_prompt",
+        ))
+
+    def on_mount(self):
+        self.border_title = "Filter"
+
 
 class TableDialog(Static):
     def __init__(self, df: pd.DataFrame, page_len: int = 100):
@@ -69,35 +99,46 @@ class TableDialog(Static):
         page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
         return slice(*page)
 
+    def update_page_display(self):
+        zpad = int(log10(self.page_tot)) + 1
+        page_display = self.query_one(Label)
+        page_display.update(f" {self.page_no:0{zpad}} / {self.page_tot} ")
+
     def next_page(self):
         if self.page_no < self.page_tot:
             self.page_no += 1
             table = self.query_one(DataFrameTable)
             table.update_df(self.shown_df[self.page_slice()])
+            self.update_page_display()
 
     def back_page(self):
         if self.page_no > 1:
             self.page_no -= 1
             table = self.query_one(DataFrameTable)
             table.update_df(self.shown_df[self.page_slice()])
+            self.update_page_display()
+
+    def last_page(self):
+        self.page_no = self.page_tot
+        table = self.query_one(DataFrameTable)
+        table.update_df(self.shown_df[self.page_slice()])
+        self.update_page_display()
+
+    def first_page(self):
+        self.page_no = 1
+        table = self.query_one(DataFrameTable)
+        table.update_df(self.shown_df[self.page_slice()])
+        self.update_page_display()
 
     def compose(self) -> ComposeResult:
-        yield Container(
-            DataFrameTable(),
-            Container(
-                Input(
-                    placeholder=f"Example: {self.df.columns[-1]} > 42",
-                    id="input_prompt",
-                ),
-                Button("[ ◀─ ]", id="back_button"),
-                Button("[ ─▶ ]", id="next_button"),
-                id="control_bar",
-            ),
-        )
+        yield DataFrameTable()
+        yield PageControls()
+        yield InputFilter()
 
     def on_mount(self):
         table = self.query_one(DataFrameTable)
         table.add_df(self.shown_df[self.page_slice()])
+        self.update_page_display()
 
     def on_button_pressed(self, event: Button.Pressed):
         """Event handler called when a button is pressed."""
@@ -106,6 +147,10 @@ class TableDialog(Static):
             self.next_page()
         elif button_id == "back_button":
             self.back_page()
+        elif button_id == "first_button":
+            self.first_page()
+        elif button_id == "last_button":
+            self.last_page()
 
     async def on_input_changed(self, event: Input.Submitted):
         return self.filter_table(event.value)
@@ -153,6 +198,24 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+LOGO = """
+000        00    
+00000    00000
+00000    00000          0000000000  000000000   
+00000    00000  00  0000  000     0   000   0000
+ 00000  000000  00 000    000000  00  000 000
+000000 000 00   00 000     00     0    00 000
+000  0000  000  00    000  00     00   00    000
+ 00  000   000  00 00  000 00     00   00 00 000
+ 00   00   00   0   00     0      00   0
+ 00         0"""
+
+
+class Banner(Static):
+    def compose(self) -> ComposeResult:
+        yield Label(LOGO)
+
+
 class Misfits(App):
     """Main app."""
 
@@ -169,10 +232,6 @@ class Misfits(App):
         yield TabbedContent()
         yield Footer()
 
-    def action_toggle_dark(self) -> None:
-        """An action to toggle dark mode."""
-        self.dark = not self.dark
-
     def on_mount(self):
         self.fits_content = self.populate_tabs(self.input_path)
 
@@ -182,10 +241,10 @@ class Misfits(App):
         tabs.loading = True
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
-            if content["header"]:
-                await tabs.add_pane(
-                    TabPane(f"Header-{i}", HeaderDialog(content["header"]))
-                )
+            # if content["header"]:
+            #     await tabs.add_pane(
+            #         TabPane(f"Header-{i}", HeaderDialog(content["header"]))
+            #     )
             if content["type"] == "table":
                 await tabs.add_pane(TabPane(f"Table-{i}", TableDialog(content["data"])))
         tabs.loading = False

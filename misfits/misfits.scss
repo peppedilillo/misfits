@@ -1,37 +1,50 @@
-TableDialog {
-  height: 1fr;
-  border: round $background;
-  padding: 0 0;
+Banner {
+  align: center top;
+  background: $background;
 }
 
-#control_bar {
-  layout: horizontal;
-  height: 2;
+TabbedContent {
+  height: 1fr;  /* keeps loading indicator at center */
+  background: $background;
+}
+
+TabPane {
+  padding: 0 1;
   border: none;
-  padding-top: 1;
+}
+
+DataFrameTable {
+  border: round $secondary;
+  height: 1fr;
+}
+
+PageControls {
+  border: round $secondary;
+  height: 3;
+}
+
+/* this is required to have the page controls
+ * centered. i could not find a solution withtout
+ * addressing the buttons' container */
+#pagecontrol_container {
+  align: center middle;
+}
+
+.arrow_button {
+  min-width: 6;
+  height: 1;
+  border: none;
+  background: $background;
+}
+
+
+InputFilter {
+  border: round $secondary;
+  height: 3;
 }
 
 #input_prompt {
   height: 1;
   width: 1fr;
   border: none;
-}
-
-Button {
-  min-width: 6;
-  height: 1;
-  border: none;
-}
-
-DataFrameTable {
-  height: 1fr;
-}
-
-TabPane {
-  padding: 0;
-  border: none;
-}
-
-TabbedContent {
-  height: 1fr;
 }
