@@ -1,5 +1,6 @@
 import asyncio
-from math import ceil, log10
+from math import ceil
+from math import log10
 from pathlib import Path
 
 from astropy.io import fits
@@ -11,16 +12,17 @@ import pandas as pd
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container
+from textual.containers import Horizontal
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
+from textual.widgets import Label
 from textual.widgets import Static
 from textual.widgets import TabbedContent
-from textual.widgets import TabPane, Label
-
+from textual.widgets import TabPane
 
 LOGO = """
 000        00    
@@ -87,10 +89,12 @@ class PageControls(Static):
 
 class InputFilter(Static):
     def compose(self) -> ComposeResult:
-        yield Container(Input(
-            placeholder=f"Enter query (e.g. `COL1 > 42 &  COL2 == 3)`",
-            id="input_prompt",
-        ))
+        yield Container(
+            Input(
+                placeholder=f"Enter query (e.g. `COL1 > 42 &  COL2 == 3)`",
+                id="input_prompt",
+            )
+        )
 
     def on_mount(self):
         self.border_title = "Filter"
