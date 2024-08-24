@@ -11,19 +11,29 @@ import pandas as pd
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
-from textual.containers import Container, Vertical, Horizontal
-from textual.containers import ScrollableContainer
+from textual.containers import Container, Horizontal
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
-from textual.widgets import Pretty
 from textual.widgets import Static
 from textual.widgets import TabbedContent
-from textual.widgets import TabPane, TextArea, Log, Label
-from textual.widget import Widget
-from textual.app import RenderResult
+from textual.widgets import TabPane, Label
+
+
+LOGO = """
+000        00    
+00000    00000
+00000    00000          0000000000  000000000   
+00000    00000  00  0000  000     0   000   0000
+ 00000  000000  00 000    000000  00  000 000
+000000 000 00   00 000     00     0    00 000
+000  0000  000  00    000  00     00   00    000
+ 00  000   000  00 00  000 00     00   00 00 000
+ 00   00   00   0   00     0      00   0
+ 00         0
+ """
 
 
 class DataFrameTable(DataTable):
@@ -169,15 +179,6 @@ class TableDialog(Static):
         table.update_df(self.shown_df[self.page_slice()])
 
 
-class HeaderDialog(Static):
-    def __init__(self, header: dict):
-        super().__init__()
-        self.header = header
-
-    def compose(self):
-        yield ScrollableContainer(Pretty(self.header))
-
-
 def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     def is_table(hdu):
         return type(hdu) in [TableHDU, BinTableHDU]
@@ -196,19 +197,6 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
             for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
         )
     return content
-
-
-LOGO = """
-000        00    
-00000    00000
-00000    00000          0000000000  000000000   
-00000    00000  00  0000  000     0   000   0000
- 00000  000000  00 000    000000  00  000 000
-000000 000 00   00 000     00     0    00 000
-000  0000  000  00    000  00     00   00    000
- 00  000   000  00 00  000 00     00   00 00 000
- 00   00   00   0   00     0      00   0
- 00         0"""
 
 
 class Banner(Static):
@@ -243,7 +231,7 @@ class Misfits(App):
         for i, content in enumerate(contents):
             # if content["header"]:
             #     await tabs.add_pane(
-            #         TabPane(f"Header-{i}", HeaderDialog(content["header"]))
+            #         TabPane(f"Header-{i}", HeaderDialog(content["header"], read_only=True))
             #     )
             if content["type"] == "table":
                 await tabs.add_pane(TabPane(f"Table-{i}", TableDialog(content["data"])))

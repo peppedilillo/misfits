@@ -23,6 +23,11 @@ PageControls {
   height: 3;
 }
 
+InputFilter {
+  border: round $secondary;
+  height: 3;
+}
+
 /* this is required to have the page controls
  * centered. i could not find a solution withtout
  * addressing the buttons' container */
@@ -37,11 +42,6 @@ PageControls {
   background: $background;
 }
 
-
-InputFilter {
-  border: round $secondary;
-  height: 3;
-}
 
 #input_prompt {
   height: 1;
