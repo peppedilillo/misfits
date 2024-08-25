@@ -111,7 +111,7 @@ class TableDialog(Static):
         self.page_len = page_len
         self.shown_df = df
         self.page_no = 1  # starts from one
-        self.page_tot = ceil(len(df) / page_len)
+        self.page_tot = max(ceil(len(df) / page_len), 1)
 
     def page_slice(self):
         page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
@@ -182,10 +182,19 @@ class TableDialog(Static):
             return
         self.shown_df = filtered_df
         self.page_no = 1
-        self.page_tot = ceil(len(self.shown_df) / self.page_len)
+        self.page_tot = max(ceil(len(self.shown_df) / self.page_len), 1)
         table = self.query_one(DataFrameTable)
         table.update_df(self.shown_df[self.page_slice()])
         self.update_page_display()
+
+
+class EmptyDialog(Static):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.border_title = "Data"
+
+    def compose(self) -> ComposeResult:
+        yield Label("No data to show")
 
 
 class MoreScreen(ModalScreen):
@@ -204,10 +213,11 @@ class MoreScreen(ModalScreen):
 
 
 class HeaderDialog(Tree):
-    def __init__(self, header: dict, hide_over: int = 20, *args, **kwargs):
+    def __init__(self, header: dict, hide_over: int = 16, *args, **kwargs):
         super().__init__(label="header", *args, **kwargs)
+        self.border_title = "Header"
         self.truncated = {}
-        self.guide_depth = 4
+        self.guide_depth = 3
         self.show_guides = True
         self.root.expand()
         for key, value in header.items():
@@ -244,6 +254,20 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+class HDUPane(TabPane):
+    def __init__(self, content: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.content = content
+
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            yield HeaderDialog(self.content["header"])
+            if self.content["type"] == "table":
+                yield TableDialog(self.content["data"])
+            else:
+                yield EmptyDialog()
+
+
 class Banner(Static):
     def compose(self) -> ComposeResult:
         yield Label(LOGO)
@@ -274,12 +298,7 @@ class Misfits(App):
         tabs.loading = True
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
-            if content["header"]:
-                await tabs.add_pane(
-                    TabPane(f"Header-{i}", HeaderDialog(content["header"]))
-                )
-            if content["type"] == "table":
-                await tabs.add_pane(TabPane(f"Table-{i}", TableDialog(content["data"])))
+            await tabs.add_pane(HDUPane(content, f"HDU-{i}"))
         tabs.loading = False
 
 

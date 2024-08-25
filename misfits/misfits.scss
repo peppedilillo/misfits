@@ -1,3 +1,24 @@
+HeaderDialog {
+  width: 28;
+  border: round $secondary;
+  background: $background;
+}
+
+TableDialog {
+  width: 1fr;
+}
+
+EmptyDialog {
+  width: 1fr;
+  height: 1fr;
+  border: round $secondary;
+  align: center middle;
+}
+
+EmptyDialog Label {
+  width: auto;
+}
+
 TabbedContent {
   height: 1fr;  /* keeps loading indicator at center */
   background: $background;
