@@ -80,12 +80,12 @@ class DataFrameTable(DataTable):
 
 class PageControls(Static):
     def compose(self) -> ComposeResult:
-        with Horizontal(id="pagecontrol_container"):
-            yield Button("[  |◀─  ]", id="first_button")
-            yield Button("[  ◀─  ]", id="back_button")
+        with Horizontal():
+            yield Button("[ |◀─ ]", id="first_button")
+            yield Button("[ ◀─  ]", id="back_button")
             yield Label("Hello", id="page_display")
-            yield Button("[  ─▶  ]", id="next_button")
-            yield Button("[  ─▶|  ]", id="last_button")
+            yield Button("[  ─▶ ]", id="next_button")
+            yield Button("[ ─▶| ]", id="last_button")
 
     def on_mount(self):
         self.border_title = "Pages"
@@ -96,7 +96,6 @@ class InputFilter(Static):
         yield Container(
             Input(
                 placeholder=f"Enter query (e.g. `COL1 > 42 &  COL2 == 3)`",
-                id="input_prompt",
             )
         )
 
@@ -105,7 +104,7 @@ class InputFilter(Static):
 
 
 class TableDialog(Static):
-    def __init__(self, df: pd.DataFrame, page_len: int = 100):
+    def __init__(self, df: pd.DataFrame, page_len: int = 1000):
         super().__init__()
         self.df = df
         self.page_len = page_len
@@ -189,12 +188,11 @@ class TableDialog(Static):
 
 
 class EmptyDialog(Static):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        self.border_title = "Data"
-
     def compose(self) -> ComposeResult:
-        yield Label("No data to show")
+        yield Label("No tables to show")
+
+    def on_mount(self):
+        self.border_title = "Data"
 
 
 class MoreScreen(ModalScreen):
@@ -205,7 +203,7 @@ class MoreScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Container():
             yield TextArea.code_editor(self.text, read_only=True)
-            yield Label("Press ESC to close.", id="close_label")
+            yield Label("Press ESC to close.")
 
     def on_key(self, event: events.Key) -> None:
         if event.key == "escape":
@@ -213,7 +211,7 @@ class MoreScreen(ModalScreen):
 
 
 class HeaderDialog(Tree):
-    def __init__(self, header: dict, hide_over: int = 16, *args, **kwargs):
+    def __init__(self, header: dict, hide_over: int = 12, *args, **kwargs):
         super().__init__(label="header", *args, **kwargs)
         self.border_title = "Header"
         self.truncated = {}
@@ -232,6 +230,20 @@ class HeaderDialog(Tree):
     def on_tree_node_selected(self, event: Tree.NodeSelected):
         if event.node in self.truncated:
             self.app.push_screen(MoreScreen(self.truncated[event.node]))
+
+
+class HDUPane(TabPane):
+    def __init__(self, content: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.content = content
+
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            yield HeaderDialog(self.content["header"])
+            if self.content["type"] == "table":
+                yield TableDialog(self.content["data"])
+            else:
+                yield EmptyDialog()
 
 
 def get_fits_content(fits_path: str | Path) -> tuple[dict]:
@@ -254,29 +266,9 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
-class HDUPane(TabPane):
-    def __init__(self, content: dict, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.content = content
-
-    def compose(self) -> ComposeResult:
-        with Horizontal():
-            yield HeaderDialog(self.content["header"])
-            if self.content["type"] == "table":
-                yield TableDialog(self.content["data"])
-            else:
-                yield EmptyDialog()
-
-
-class Banner(Static):
-    def compose(self) -> ComposeResult:
-        yield Label(LOGO)
-
-
 class Misfits(App):
     """Main app."""
 
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
     CSS_PATH = "misfits.scss"
 
     def __init__(self, input_path: Path | str) -> None:
@@ -285,9 +277,9 @@ class Misfits(App):
         self.fits_content = []
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        # yield Header()
         yield TabbedContent()
-        yield Footer()
+        # yield Footer()
 
     def on_mount(self):
         self.fits_content = self.populate_tabs(self.input_path)
@@ -302,10 +294,23 @@ class Misfits(App):
         tabs.loading = False
 
 
+def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Path:
+    try:
+        _ = fits.getheader(filepath)
+    except OSError as e:
+        raise click.FileError(
+            f"Invalid input.",
+            hint="Please, check misfits `INPUT_PATH` argument "
+                 "and make sure it points to a FITS file.",
+        )
+    return filepath
+
+
 @click.command()
 @click.argument(
     "input_path",
     type=click.Path(exists=True, path_type=Path),
+    callback=validate_fits,
 )
 def main(input_path: Path):
     app = Misfits(input_path)
