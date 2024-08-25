@@ -1,15 +1,10 @@
-Banner {
-  align: center top;
-  background: $background;
-}
-
 TabbedContent {
   height: 1fr;  /* keeps loading indicator at center */
   background: $background;
 }
 
 TabPane {
-  padding: 0 1;
+  padding: 1 1;
   border: none;
 }
 
@@ -31,11 +26,11 @@ InputFilter {
 /* this is required to have the page controls
  * centered. i could not find a solution withtout
  * addressing the buttons' container */
-#pagecontrol_container {
+PageControls Horizontal {
   align: center middle;
 }
 
-.arrow_button {
+PageControls Button {
   min-width: 6;
   height: 1;
   border: none;
@@ -43,8 +38,23 @@ InputFilter {
 }
 
 
-#input_prompt {
+InputFilter Input {
   height: 1;
   width: 1fr;
   border: none;
+}
+
+MoreScreen {
+    align: center middle;
+}
+
+MoreScreen Container {
+  width: 60;
+  height: 16;
+  border: thick $background 80%;
+  background: $surface;
+}
+
+MoreScreen Label {
+  margin: 1 0 0 1;
 }
