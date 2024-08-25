@@ -18,8 +18,6 @@ from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import DataTable
-from textual.widgets import Footer
-from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Label
 from textual.widgets import Static
@@ -301,7 +299,7 @@ def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Pa
         raise click.FileError(
             f"Invalid input.",
             hint="Please, check misfits `INPUT_PATH` argument "
-                 "and make sure it points to a FITS file.",
+            "and make sure it points to a FITS file.",
         )
     return filepath
 
