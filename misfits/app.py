@@ -15,6 +15,7 @@ from textual.app import App
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.containers import Horizontal
+from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
@@ -23,9 +24,9 @@ from textual.widgets import Input
 from textual.widgets import Label
 from textual.widgets import Static
 from textual.widgets import TabbedContent
-from textual.widgets import TabPane, Tree, TextArea
-from textual.screen import ModalScreen
-
+from textual.widgets import TabPane
+from textual.widgets import TextArea
+from textual.widgets import Tree
 
 LOGO = """
 000        00    
@@ -203,7 +204,7 @@ class MoreScreen(ModalScreen):
 
 
 class HeaderDialog(Tree):
-    def __init__(self, header: dict, hide_over: int=20, *args, **kwargs):
+    def __init__(self, header: dict, hide_over: int = 20, *args, **kwargs):
         super().__init__(label="header", *args, **kwargs)
         self.truncated = {}
         self.guide_depth = 4
