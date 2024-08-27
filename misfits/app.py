@@ -1,7 +1,11 @@
 import asyncio
+import string
 from math import ceil
 from math import log10
 from pathlib import Path
+from random import choice
+from enum import Enum
+from datetime import datetime
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -15,7 +19,7 @@ from textual.app import App
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.containers import Horizontal
-from textual.screen import ModalScreen
+from textual.screen import ModalScreen, Screen
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Input
@@ -24,20 +28,27 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
-from textual.widgets import Tree
+from textual.widgets import Tree, RichLog, Footer, Header
 
-LOGO = """
-000        00    
-00000    00000
-00000    00000          0000000000  000000000   
-00000    00000  00  0000  000     0   000   0000
- 00000  000000  00 000    000000  00  000 000
-000000 000 00   00 000     00     0    00 000
-000  0000  000  00    000  00     00   00    000
- 00  000   000  00 00  000 00     00   00 00 000
- 00   00   00   0   00     0      00   0
- 00         0
+_LOGO = """            
+     0           0                                                       
+    0000000     000000               0000000000000   000000000000000     
+    0000000    0000000               000000000000      000000000         
+    0000000    000000  0000    0000     00000     0000  000000    0000   
+    0000000   0000000  000   0000000    000000000 000   00000   00000000 
+    00000000 00000000  000  0000    0   0000000   000    00000 00000   0 
+    00000000 0000000   000  00000       0000      000    0000  00000     
+    000000000000 0000  000   0000000    0000      000     000    00000   
+     000 000000  0000  000       00000  0000      000    0000        0000
+    0000  0000   000    00 0000000000   0000       00    0000 0000000000 
+    0000  0000   000         00000      00               00      0000    
+    0000   00    000                                                     
  """
+
+LOGO = "".join([
+    choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    if s == "0" else s for s in _LOGO
+])
 
 
 class DataFrameTable(DataTable):
@@ -264,32 +275,79 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+class LogScreen(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Show dashboard")]
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield RichLog(highlight=False, markup=True)
+        yield Footer()
+
+    def on_screen_resume(self):
+        log = self.query_one(RichLog)
+        while line := self.app.log_pop():
+            log.write(line)
+
+
+class LogLevel(Enum):
+    INFO = 0
+    WARNING = 1
+    ERROR = 2
+
+
 class Misfits(App):
     """Main app."""
 
     CSS_PATH = "misfits.scss"
+    SCREENS = {"log": LogScreen}
+    BINDINGS = [("ctrl+l", "push_screen('log')", "Show log")]
 
-    def __init__(self, input_path: Path | str) -> None:
+    def __init__(self, input_path: Path) -> None:
         super().__init__()
         self.input_path = input_path
         self.fits_content = []
+        self.logstack = []
 
     def compose(self) -> ComposeResult:
-        # yield Header()
+        yield Header()
         yield TabbedContent()
-        # yield Footer()
+        yield Footer()
 
     def on_mount(self):
+        self.log_push(
+            f"\nHey, this is..\n[bold green]{LOGO}"
+            "[/]\n\nThe spooky FITS viewer.\n"
+            "Nice to meet you! Let's begin.\n",
+            level=None,
+        )
         self.fits_content = self.populate_tabs(self.input_path)
 
     @work
-    async def populate_tabs(self, input_path):
+    async def populate_tabs(self, input_path: Path):
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
+        self.log_push(f"Opening '{input_path.name}'")
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
             await tabs.add_pane(HDUPane(content, f"HDU-{i}"))
+            self.log_push(f"Found HDU of type {repr(content['type'])}.")
         tabs.loading = False
+
+    def log_push(self, message: str, level: LogLevel | None = LogLevel.INFO):
+        now_str = "[dim cyan]" + datetime.now().strftime("(%H:%M:%S)") + "[/]"
+        match level:
+            case LogLevel.INFO:
+                prefix = f"{now_str} [dim green][INFO][/]: "
+            case LogLevel.WARNING:
+                prefix = f"{now_str} [dim orange][WARNING][/]: "
+            case LogLevel.ERROR:
+                prefix = f"{now_str} [dim red][ERROR][/]: "
+            case _:
+                prefix = ""
+        self.logstack.append(prefix + message)
+
+    def log_pop(self) -> str | None:
+        return self.logstack.pop(0) if self.logstack else None
 
 
 def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Path:
@@ -299,7 +357,7 @@ def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Pa
         raise click.FileError(
             f"Invalid input.",
             hint="Please, check misfits `INPUT_PATH` argument "
-            "and make sure it points to a FITS file.",
+                 "and make sure it points to a FITS file.",
         )
     return filepath
 
@@ -316,5 +374,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz")
+    app = Misfits(Path("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz"))
     app.run()
