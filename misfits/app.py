@@ -1,11 +1,11 @@
 import asyncio
-import string
+from datetime import datetime
+from enum import Enum
 from math import ceil
 from math import log10
 from pathlib import Path
 from random import choice
-from enum import Enum
-from datetime import datetime
+import string
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -19,16 +19,20 @@ from textual.app import App
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.containers import Horizontal
-from textual.screen import ModalScreen, Screen
+from textual.screen import ModalScreen
+from textual.screen import Screen
 from textual.widgets import Button
 from textual.widgets import DataTable
+from textual.widgets import Footer
+from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Label
+from textual.widgets import RichLog
 from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
-from textual.widgets import Tree, RichLog, Footer, Header
+from textual.widgets import Tree
 
 _LOGO = """            
      0           0                                                       
@@ -45,10 +49,16 @@ _LOGO = """
     0000   00    000                                                     
  """
 
-LOGO = "".join([
-    choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-    if s == "0" else s for s in _LOGO
-])
+LOGO = "".join(
+    [
+        (
+            choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+            if s == "0"
+            else s
+        )
+        for s in _LOGO
+    ]
+)
 
 
 class DataFrameTable(DataTable):
@@ -357,7 +367,7 @@ def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Pa
         raise click.FileError(
             f"Invalid input.",
             hint="Please, check misfits `INPUT_PATH` argument "
-                 "and make sure it points to a FITS file.",
+            "and make sure it points to a FITS file.",
         )
     return filepath
 
@@ -374,5 +384,7 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits(Path("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz"))
+    app = Misfits(
+        Path("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz")
+    )
     app.run()
