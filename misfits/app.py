@@ -20,7 +20,6 @@ from textual.app import ComposeResult
 from textual.containers import Container
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
-from textual.screen import Screen
 from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
@@ -178,15 +177,17 @@ class TableDialog(Static):
 
     def on_button_pressed(self, event: Button.Pressed):
         """Event handler called when a button is pressed."""
-        button_id = event.button.id
-        if button_id == "next_button":
-            self.next_page()
-        elif button_id == "back_button":
-            self.back_page()
-        elif button_id == "first_button":
-            self.first_page()
-        elif button_id == "last_button":
-            self.last_page()
+        match event.button.id:
+            case "next_button":
+                self.next_page()
+            case "back_button":
+                self.back_page()
+            case "first_button":
+                self.first_page()
+            case "last_button":
+                self.last_page()
+            case _:
+                raise ValueError("Unknown button.")
 
     async def on_input_changed(self, event: Input.Submitted):
         return self.filter_table(event.value)
@@ -252,14 +253,14 @@ class HeaderDialog(Tree):
 
 
 class HDUPane(TabPane):
-    def __init__(self, content: dict, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, content: dict):
         self.content = content
+        super().__init__(content["name"])
 
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield HeaderDialog(self.content["header"])
-            if self.content["type"] == "table":
+            if "Table" in self.content["type"]:
                 yield TableDialog(self.content["data"])
             else:
                 yield EmptyDialog()
@@ -269,16 +270,22 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     def is_table(hdu):
         return type(hdu) in [TableHDU, BinTableHDU]
 
-    def sanitize(table):
-        names = [name for name in table.colnames if len(table[name].shape) <= 1]
-        return table[names]
+    def multicols(data):
+        return [c.name for c in data.columns if len(c.array.shape) > 1]
+
+    def to_pandas(data):
+        scols = [c.name for c in data.columns if len(c.array.shape) == 1]
+        # will filter out multicolumns
+        return Table(data)[scols].to_pandas()
 
     with fits.open(fits_path) as hdul:
         content = tuple(
             {
-                "type": "table" if is_table else "other",
+                "name": hdu.name,
+                "type": hdu.__class__.__name__,
                 "header": dict(hdu.header) if hdu.header else None,
-                "data": sanitize(Table(hdu.data)).to_pandas() if is_table else None,
+                "data": to_pandas(hdu.data) if is_table else None,
+                "multicols": multicols(hdu.data) if is_table else None,
             }
             for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
         )
@@ -290,7 +297,7 @@ class LogScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield RichLog(highlight=False, markup=True)
+        yield RichLog(highlight=True, markup=True)
         yield Footer()
 
     def on_screen_resume(self):
@@ -325,22 +332,29 @@ class Misfits(App):
 
     def on_mount(self):
         self.log_push(
-            f"\nHey, this is..\n[bold green]{LOGO}"
-            "[/]\n\nThe spooky FITS viewer.\n"
-            "Nice to meet you! Let's begin.\n",
+            f"\nHey, this is..\n[bold green]{LOGO}[/]"
+            "\nNice to meet you! Let's begin.\n",
             level=None,
         )
         self.fits_content = self.populate_tabs(self.input_path)
 
     @work
     async def populate_tabs(self, input_path: Path):
+        def log_fitcontents(content):
+            self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}.")
+            if content["data"] is not None:
+                ncols = len(content["data"].columns) + len(content["multicols"]) if content["multicols"] else len(content["data"].columns)
+                self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns.")
+            if content["multicols"]:
+                self.log_push(f"Dropping multilevel columns: {', '.join(map(repr, content['multicols']))}", LogLevel.WARNING)
+
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
-        self.log_push(f"Opening '{input_path.name}'")
+        self.log_push(f"Opening '{input_path}'")
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
-            await tabs.add_pane(HDUPane(content, f"HDU-{i}"))
-            self.log_push(f"Found HDU of type {repr(content['type'])}.")
+            await tabs.add_pane(HDUPane(content))
+            log_fitcontents(content)
         tabs.loading = False
 
     def log_push(self, message: str, level: LogLevel | None = LogLevel.INFO):
@@ -349,9 +363,9 @@ class Misfits(App):
             case LogLevel.INFO:
                 prefix = f"{now_str} [dim green][INFO][/]: "
             case LogLevel.WARNING:
-                prefix = f"{now_str} [dim orange][WARNING][/]: "
+                prefix = f"{now_str} [dim yellow][WARNING][/]: "
             case LogLevel.ERROR:
-                prefix = f"{now_str} [dim red][ERROR][/]: "
+                prefix = f"{now_str} [bold red][ERROR][/]: "
             case _:
                 prefix = ""
         self.logstack.append(prefix + message)
