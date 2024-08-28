@@ -71,17 +71,38 @@ MoreScreen {
 }
 
 MoreScreen Container {
-  width: 60;
-  height: 16;
-  border: thick $background 80%;
+  width: 48;
+  height: 12;
+  border: thick $background;
   background: $surface;
 }
 
-MoreScreen Label {
-  margin: 1 0 0 1;
+MoreScreen TextArea {
+  margin: 1;
+  border: none;
 }
 
-LogScreen Richlog {
-  overflow-x: hidden;
-  overflow-y: hidden;
+FileExplorer {
+  align: center middle
+}
+
+FileExplorer Container {
+  align: center middle;
+  width: 60;
+  height: 16;
+  padding: 0 1;
+  border: thick $background;
+  background: $surface;
+}
+
+FileExplorer DirectoryTree {
+  border: round $secondary;
+  &.error {
+    border: round $error;
+  }
+}
+
+FileExplorer Label {
+  margin: 1 0 ;
+  width: auto;
 }

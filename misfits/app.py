@@ -5,7 +5,7 @@ from math import ceil
 from math import log10
 from pathlib import Path
 from random import choice
-import string
+from string import ascii_letters, digits
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -31,7 +31,8 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
-from textual.widgets import Tree
+from textual.widgets import Tree, DirectoryTree
+
 
 _LOGO = """            
      0           0                                                       
@@ -51,7 +52,7 @@ _LOGO = """
 LOGO = "".join(
     [
         (
-            choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+            choice(ascii_letters + digits)
             if s == "0"
             else s
         )
@@ -111,11 +112,8 @@ class PageControls(Static):
 
 class InputFilter(Static):
     def compose(self) -> ComposeResult:
-        yield Container(
-            Input(
-                placeholder=f"Enter query (e.g. `COL1 > 42 &  COL2 == 3)`",
-            )
-        )
+        with Container():
+            yield Input(f"Enter query (e.g. 'COL1 > 42 & COL2 == 3)'")
 
     def on_mount(self):
         self.border_title = "Filter"
@@ -165,6 +163,24 @@ class TableDialog(Static):
         table.update_df(self.shown_df[self.page_slice()])
         self.update_page_display()
 
+    @work(exclusive=True)
+    async def filter_table(self, query: str):
+        # noinspection PyBroadException
+        try:
+            filtered_df = await asyncio.to_thread(self.df.query, query)
+        except Exception as e:
+            return
+        self.shown_df = filtered_df
+        self.page_no = 1
+        self.page_tot = max(ceil(len(self.shown_df) / self.page_len), 1)
+        table = self.query_one(DataFrameTable)
+        table.update_df(self.shown_df[self.page_slice()])
+        self.update_page_display()
+        self.app.log_push(
+            f"Filtered table by query {repr(query)}, "
+            f"{len(filtered_df)} entries matching the query."
+        )
+
     def compose(self) -> ComposeResult:
         yield DataFrameTable()
         yield PageControls()
@@ -192,64 +208,53 @@ class TableDialog(Static):
     async def on_input_changed(self, event: Input.Submitted):
         return self.filter_table(event.value)
 
-    @work(exclusive=True)
-    async def filter_table(self, query: str):
-        # noinspection PyBroadException
-        try:
-            filtered_df = await asyncio.to_thread(self.df.query, query)
-        except Exception as e:
-            return
-        self.shown_df = filtered_df
-        self.page_no = 1
-        self.page_tot = max(ceil(len(self.shown_df) / self.page_len), 1)
-        table = self.query_one(DataFrameTable)
-        table.update_df(self.shown_df[self.page_slice()])
-        self.update_page_display()
-
 
 class EmptyDialog(Static):
     def compose(self) -> ComposeResult:
         yield Label("No tables to show")
 
     def on_mount(self):
-        self.border_title = "Data"
+        self.border_title = "Table"
 
 
 class MoreScreen(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+    TITLE = "Header entry"
+    SUB_TITLE = ""
+
     def __init__(self, text: str):
         super().__init__()
         self.text = text
 
     def compose(self) -> ComposeResult:
         with Container():
+            yield Header()
             yield TextArea.code_editor(self.text, read_only=True)
-            yield Label("Press ESC to close.")
-
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "escape":
-            self.app.pop_screen()
+        yield Footer()
 
 
 class HeaderDialog(Tree):
-    def __init__(self, header: dict, hide_over: int = 12, *args, **kwargs):
-        super().__init__(label="header", *args, **kwargs)
-        self.border_title = "Header"
-        self.truncated = {}
-        self.guide_depth = 3
-        self.show_guides = True
-        self.root.expand()
+    def __init__(self, header: dict, hide_over: int = 12):
+        super().__init__(label="header")
+        self.leafs = []
         for key, value in header.items():
             node = self.root.add(label=key)
             if len(vstr := str(value).strip()) < hide_over:
-                node.add_leaf(vstr)
+                label = vstr
                 node.expand()
             else:
-                leaf = node.add_leaf(vstr[:hide_over] + "..")
-                self.truncated[leaf] = str(value)
+                label = vstr[:hide_over] + ".."
+            self.leafs.append(node.add_leaf(label, data=str(value)))
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
-        if event.node in self.truncated:
-            self.app.push_screen(MoreScreen(self.truncated[event.node]))
+        if event.node in self.leafs:
+            self.app.push_screen(MoreScreen(event.node.data))
+
+    def on_mount(self):
+        self.border_title = "Header"
+        self.guide_depth = 3
+        self.show_guides = True
+        self.root.expand()
 
 
 class HDUPane(TabPane):
@@ -260,7 +265,7 @@ class HDUPane(TabPane):
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield HeaderDialog(self.content["header"])
-            if "Table" in self.content["type"]:
+            if self.content["is_table"]:
                 yield TableDialog(self.content["data"])
             else:
                 yield EmptyDialog()
@@ -284,6 +289,7 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
                 "name": hdu.name,
                 "type": hdu.__class__.__name__,
                 "header": dict(hdu.header) if hdu.header else None,
+                "is_table": is_table,
                 "data": to_pandas(hdu.data) if is_table else None,
                 "multicols": multicols(hdu.data) if is_table else None,
             }
@@ -292,8 +298,30 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+class FileExplorer(ModalScreen):
+    TITLE = "Open file"
+    SUB_TITLE = ""
+    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+
+    def compose(self) -> ComposeResult:
+        with Container():
+            yield Header(show_clock=False)
+            yield DirectoryTree("./")
+        yield Footer()
+
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
+        if not _validate_fits(event.path):
+            dirtree = self.query_one(DirectoryTree)
+            dirtree.add_class("error")
+            return
+        dirtree = self.query_one(DirectoryTree)
+        dirtree.remove_class("error")
+        self.app.pop_screen()
+        self.app.populate_tabs(event.path)
+
+
 class LogScreen(ModalScreen):
-    BINDINGS = [("escape", "app.pop_screen", "Show dashboard")]
+    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -315,9 +343,14 @@ class LogLevel(Enum):
 class Misfits(App):
     """Main app."""
 
+    TITLE = "Misfits"
+    SUB_TITLE = "a terminal FITS viewer"
     CSS_PATH = "misfits.scss"
-    SCREENS = {"log": LogScreen}
-    BINDINGS = [("ctrl+l", "push_screen('log')", "Show log")]
+    SCREENS = {"log": LogScreen, "file_explorer": FileExplorer}
+    BINDINGS = [
+        ("ctrl+l", "push_screen('log')", "Show log"),
+        ("ctrl+o", "push_screen('file_explorer')", "Open file"),
+    ]
 
     def __init__(self, input_path: Path) -> None:
         super().__init__()
@@ -326,30 +359,28 @@ class Misfits(App):
         self.logstack = []
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield Header(show_clock=True)
         yield TabbedContent()
         yield Footer()
 
     def on_mount(self):
-        self.log_push(
-            f"\nHey, this is..\n[bold green]{LOGO}[/]"
-            "\nNice to meet you! Let's begin.\n",
-            level=None,
-        )
         self.fits_content = self.populate_tabs(self.input_path)
 
     @work
     async def populate_tabs(self, input_path: Path):
         def log_fitcontents(content):
+            # fmt: off
             self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}.")
             if content["data"] is not None:
                 ncols = len(content["data"].columns) + len(content["multicols"]) if content["multicols"] else len(content["data"].columns)
                 self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns.")
             if content["multicols"]:
                 self.log_push(f"Dropping multilevel columns: {', '.join(map(repr, content['multicols']))}", LogLevel.WARNING)
+            # fmt: on
 
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
+        tabs.clear_panes()
         self.log_push(f"Opening '{input_path}'")
         contents = await asyncio.to_thread(get_fits_content, input_path)
         for i, content in enumerate(contents):
@@ -374,10 +405,16 @@ class Misfits(App):
         return self.logstack.pop(0) if self.logstack else None
 
 
-def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Path:
+def _validate_fits(filepath: Path) -> bool:
     try:
         _ = fits.getheader(filepath)
     except OSError as e:
+        return False
+    return True
+
+
+def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Path) -> Path:
+    if not _validate_fits(filepath):
         raise click.FileError(
             f"Invalid input.",
             hint="Please, check misfits `INPUT_PATH` argument "
@@ -390,7 +427,7 @@ def validate_fits(ctx: click.Context, param: click.Option, filepath: Path) -> Pa
 @click.argument(
     "input_path",
     type=click.Path(exists=True, path_type=Path),
-    callback=validate_fits,
+    callback=click_validate_fits,
 )
 def main(input_path: Path):
     app = Misfits(input_path)
