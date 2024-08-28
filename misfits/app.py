@@ -5,7 +5,8 @@ from math import ceil
 from math import log10
 from pathlib import Path
 from random import choice
-from string import ascii_letters, digits
+from string import ascii_letters
+from string import digits
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -22,6 +23,7 @@ from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import DataTable
+from textual.widgets import DirectoryTree
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
@@ -31,8 +33,7 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
-from textual.widgets import Tree, DirectoryTree
-
+from textual.widgets import Tree
 
 _LOGO = """            
      0           0                                                       
@@ -49,16 +50,7 @@ _LOGO = """
     0000   00    000                                                     
  """
 
-LOGO = "".join(
-    [
-        (
-            choice(ascii_letters + digits)
-            if s == "0"
-            else s
-        )
-        for s in _LOGO
-    ]
-)
+LOGO = "".join([(choice(ascii_letters + digits) if s == "0" else s) for s in _LOGO])
 
 
 class DataFrameTable(DataTable):
@@ -413,7 +405,9 @@ def _validate_fits(filepath: Path) -> bool:
     return True
 
 
-def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Path) -> Path:
+def click_validate_fits(
+    ctx: click.Context, param: click.Parameter, filepath: Path
+) -> Path:
     if not _validate_fits(filepath):
         raise click.FileError(
             f"Invalid input.",
