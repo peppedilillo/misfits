@@ -1,3 +1,9 @@
+DataTable > .datatable--header {
+  text-style: bold;
+  background: $accent 30%;
+  color: $text;
+}
+
 HeaderDialog {
   width: 24;
   border: round $secondary;
@@ -13,7 +19,7 @@ EmptyDialog {
   height: 1fr;
   border: round $secondary;
   align: center middle;
-  hatch: right $success 20%;
+  hatch: right green 20%;
 }
 
 EmptyDialog Label {
@@ -67,7 +73,7 @@ InputFilter Input {
 }
 
 MoreScreen {
-    align: center middle;
+  align: center middle;
 }
 
 MoreScreen Container {
@@ -82,6 +88,10 @@ MoreScreen TextArea {
   border: none;
 }
 
+LogScreen RichLog {
+  background: $background;
+}
+
 FileExplorer {
   align: center middle
 }
@@ -89,7 +99,7 @@ FileExplorer {
 FileExplorer Container {
   align: center middle;
   width: 60;
-  height: 16;
+  height: 18;
   padding: 0 1;
   border: thick $background;
   background: $surface;
@@ -97,6 +107,7 @@ FileExplorer Container {
 
 FileExplorer DirectoryTree {
   border: round $secondary;
+  background: $background;
   &.error {
     border: round $error;
   }

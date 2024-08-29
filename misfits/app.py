@@ -7,6 +7,7 @@ from pathlib import Path
 from random import choice
 from string import ascii_letters
 from string import digits
+from typing import Iterable
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -14,7 +15,6 @@ from astropy.io.fits.hdu.table import TableHDU
 from astropy.table import Table
 import click
 import pandas as pd
-from textual import events
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
@@ -34,6 +34,18 @@ from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
 from textual.widgets import Tree
+from textual.design import ColorSystem
+from textual.app import DEFAULT_COLORS
+
+DEFAULT_COLORS["dark"] = ColorSystem(
+    primary="#03A062",
+    secondary="#03A062",
+    warning="#03A062",
+    error="#ff0000",
+    success="#00ff00",
+    accent="#00ff00",
+    dark=True,
+)
 
 _LOGO = """            
      0           0                                                       
@@ -105,14 +117,14 @@ class PageControls(Static):
 class InputFilter(Static):
     def compose(self) -> ComposeResult:
         with Container():
-            yield Input(f"Enter query (e.g. 'COL1 > 42 & COL2 == 3)'")
+            yield Input(placeholder=f"Enter query (e.g. 'COL1 > 42 & COL2 == 3)'")
 
     def on_mount(self):
         self.border_title = "Filter"
 
 
 class TableDialog(Static):
-    def __init__(self, df: pd.DataFrame, page_len: int = 1000):
+    def __init__(self, df: pd.DataFrame, page_len: int = 100):
         super().__init__()
         self.df = df
         self.page_len = page_len
@@ -120,68 +132,17 @@ class TableDialog(Static):
         self.page_no = 1  # starts from one
         self.page_tot = max(ceil(len(df) / page_len), 1)
 
-    def page_slice(self):
-        page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
-        return slice(*page)
-
-    def update_page_display(self):
-        zpad = int(log10(self.page_tot)) + 1
-        page_display = self.query_one(Label)
-        page_display.update(f" {self.page_no:0{zpad}} / {self.page_tot} ")
-
-    def next_page(self):
-        if self.page_no < self.page_tot:
-            self.page_no += 1
-            table = self.query_one(DataFrameTable)
-            table.update_df(self.shown_df[self.page_slice()])
-            self.update_page_display()
-
-    def back_page(self):
-        if self.page_no > 1:
-            self.page_no -= 1
-            table = self.query_one(DataFrameTable)
-            table.update_df(self.shown_df[self.page_slice()])
-            self.update_page_display()
-
-    def last_page(self):
-        self.page_no = self.page_tot
-        table = self.query_one(DataFrameTable)
-        table.update_df(self.shown_df[self.page_slice()])
-        self.update_page_display()
-
-    def first_page(self):
-        self.page_no = 1
-        table = self.query_one(DataFrameTable)
-        table.update_df(self.shown_df[self.page_slice()])
-        self.update_page_display()
-
-    @work(exclusive=True)
-    async def filter_table(self, query: str):
-        # noinspection PyBroadException
-        try:
-            filtered_df = await asyncio.to_thread(self.df.query, query)
-        except Exception as e:
-            return
-        self.shown_df = filtered_df
-        self.page_no = 1
-        self.page_tot = max(ceil(len(self.shown_df) / self.page_len), 1)
-        table = self.query_one(DataFrameTable)
-        table.update_df(self.shown_df[self.page_slice()])
-        self.update_page_display()
-        self.app.log_push(
-            f"Filtered table by query {repr(query)}, "
-            f"{len(filtered_df)} entries matching the query."
-        )
-
     def compose(self) -> ComposeResult:
         yield DataFrameTable()
         yield PageControls()
         yield InputFilter()
 
     def on_mount(self):
-        table = self.query_one(DataFrameTable)
-        table.add_df(self.shown_df[self.page_slice()])
+        self.query_one(DataFrameTable).update_df(self.shown_df[self.page_slice()])
         self.update_page_display()
+
+    async def on_input_changed(self, event: Input.Submitted):
+        return self.filter_table(event.value)
 
     def on_button_pressed(self, event: Button.Pressed):
         """Event handler called when a button is pressed."""
@@ -196,9 +157,46 @@ class TableDialog(Static):
                 self.last_page()
             case _:
                 raise ValueError("Unknown button.")
+        self.update_page_display()
 
-    async def on_input_changed(self, event: Input.Submitted):
-        return self.filter_table(event.value)
+    def page_slice(self):
+        page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
+        return slice(*page)
+
+    def update_page_display(self):
+        zpad = int(log10(self.page_tot)) + 1
+        self.query_one(Label).update(f" {self.page_no:0{zpad}} / {self.page_tot} ")
+        self.query_one(DataFrameTable).update_df(self.shown_df[self.page_slice()])
+
+    def next_page(self):
+        if self.page_no < self.page_tot:
+            self.page_no += 1
+
+    def back_page(self):
+        if self.page_no > 1:
+            self.page_no -= 1
+
+    def last_page(self):
+        self.page_no = self.page_tot
+
+    def first_page(self):
+        self.page_no = 1
+
+    @work(exclusive=True)
+    async def filter_table(self, query: str):
+        # noinspection PyBroadException
+        try:
+            filtered_df = await asyncio.to_thread(self.df.query, query)
+        except Exception as e:
+            return
+        self.shown_df = filtered_df
+        self.page_no = 1
+        self.page_tot = max(ceil(len(self.shown_df) / self.page_len), 1)
+        self.update_page_display()
+        self.app.log_push(
+            f"Filtered table by query {repr(query)}, "
+            f"{len(filtered_df)} entries matching the query."
+        )
 
 
 class EmptyDialog(Static):
@@ -231,12 +229,9 @@ class HeaderDialog(Tree):
         self.leafs = []
         for key, value in header.items():
             node = self.root.add(label=key)
-            if len(vstr := str(value).strip()) < hide_over:
-                label = vstr
-                node.expand()
-            else:
-                label = vstr[:hide_over] + ".."
-            self.leafs.append(node.add_leaf(label, data=str(value)))
+            label = vstr if len(vstr := str(value).strip()) < hide_over else vstr[:hide_over] + ".."
+            leaf = node.add_leaf(label, data=str(value))
+            self.leafs.append(leaf)
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
         if event.node in self.leafs:
@@ -252,7 +247,7 @@ class HeaderDialog(Tree):
 class HDUPane(TabPane):
     def __init__(self, content: dict):
         self.content = content
-        super().__init__(content["name"])
+        super().__init__(content["name"] if content["name"].strip() else "HDU")
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -290,15 +285,23 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+class FilteredDirectoryTree(DirectoryTree):
+    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
+        return [path for path in paths if not path.name.startswith(".")]
+
+
 class FileExplorer(ModalScreen):
     TITLE = "Open file"
     SUB_TITLE = ""
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+
+    def __init__(self, rootdir: Path = Path.cwd()):
+        super().__init__()
+        self.rootdir = rootdir
 
     def compose(self) -> ComposeResult:
         with Container():
             yield Header(show_clock=False)
-            yield DirectoryTree("./")
+            yield FilteredDirectoryTree(self.rootdir)
         yield Footer()
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
@@ -308,8 +311,11 @@ class FileExplorer(ModalScreen):
             return
         dirtree = self.query_one(DirectoryTree)
         dirtree.remove_class("error")
-        self.app.pop_screen()
-        self.app.populate_tabs(event.path)
+        self.dismiss(event.path)
+
+
+class EscapableFileExplorer(FileExplorer):
+    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 
 
 class LogScreen(ModalScreen):
@@ -336,30 +342,38 @@ class Misfits(App):
     """Main app."""
 
     TITLE = "Misfits"
-    SUB_TITLE = "a terminal FITS viewer"
     CSS_PATH = "misfits.scss"
     SCREENS = {"log": LogScreen, "file_explorer": FileExplorer}
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Show log"),
-        ("ctrl+o", "push_screen('file_explorer')", "Open file"),
+        ("ctrl+o", "open_explorer", "Open file"),
     ]
 
-    def __init__(self, input_path: Path) -> None:
+    def __init__(self, filepath: Path, root_dir: Path = Path.cwd()) -> None:
         super().__init__()
-        self.input_path = input_path
+        self.filepath = filepath
+        self.rootdir = root_dir
         self.fits_content = []
         self.logstack = []
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield Header(show_clock=False)
         yield TabbedContent()
         yield Footer()
 
-    def on_mount(self):
-        self.fits_content = self.populate_tabs(self.input_path)
+    @work
+    async def on_mount(self):
+        if not self.filepath:
+            self.filepath = await self.push_screen_wait(FileExplorer(self.rootdir))
+        self.fits_content = self.populate_tabs()
 
     @work
-    async def populate_tabs(self, input_path: Path):
+    async def action_open_explorer(self):
+        self.filepath = await self.push_screen_wait(EscapableFileExplorer(self.rootdir))
+        self.fits_content = self.populate_tabs()
+
+    @work
+    async def populate_tabs(self):
         def log_fitcontents(content):
             # fmt: off
             self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}.")
@@ -372,9 +386,9 @@ class Misfits(App):
 
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
-        tabs.clear_panes()
-        self.log_push(f"Opening '{input_path}'")
-        contents = await asyncio.to_thread(get_fits_content, input_path)
+        await tabs.clear_panes()
+        self.log_push(f"Opening '{self.filepath}'")
+        contents = await asyncio.to_thread(get_fits_content, self.filepath)
         for i, content in enumerate(contents):
             await tabs.add_pane(HDUPane(content))
             log_fitcontents(content)
@@ -408,7 +422,7 @@ def _validate_fits(filepath: Path) -> bool:
 def click_validate_fits(
     ctx: click.Context, param: click.Parameter, filepath: Path
 ) -> Path:
-    if not _validate_fits(filepath):
+    if filepath.is_file() and not _validate_fits(filepath):
         raise click.FileError(
             f"Invalid input.",
             hint="Please, check misfits `INPUT_PATH` argument "
@@ -424,12 +438,11 @@ def click_validate_fits(
     callback=click_validate_fits,
 )
 def main(input_path: Path):
-    app = Misfits(input_path)
+    filepath, rootdir = (None, input_path) if input_path.is_dir() else (input_path, Path.cwd())
+    app = Misfits(filepath, rootdir)
     app.run(inline=False)
 
 
 if __name__ == "__main__":
-    app = Misfits(
-        Path("/Users/peppedilillo/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz")
-    )
+    app = Misfits("/Users/peppedilillo/Library/CloudStorage/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz", Path().home())
     app.run()
