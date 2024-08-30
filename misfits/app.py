@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from enum import Enum
 from math import ceil
@@ -37,6 +38,24 @@ from textual.widgets import Tree
 from textual.design import ColorSystem
 from textual.app import DEFAULT_COLORS
 
+from rich.text import Text
+
+_LOGO = """
+    0           0                                                       
+   0000000     000000               0000000000000   000000000000000     
+   0000000    0000000               000000000000      000000000         
+   0000000    000000  0000    0000     00000     0000  000000    0000   
+   0000000   0000000  000   0000000    000000000 000   00000   00000000 
+   00000000 00000000  000  0000    0   0000000   000    00000 00000   0 
+   00000000 0000000   000  00000       0000      000    0000  00000     
+   000000000000 0000  000   0000000    0000      000     000    00000   
+    000 000000  0000  000       00000  0000      000    0000        0000
+   0000  0000   000    00 0000000000   0000       00    0000 0000000000 
+   0000  0000   000         00000      00               00      0000    
+   0000   00    000                                                     
+"""
+
+LOGO = "".join([(choice(ascii_letters + digits) if s == "0" else s) for s in _LOGO])
 
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",
@@ -48,22 +67,7 @@ DEFAULT_COLORS["dark"] = ColorSystem(
     dark=True,
 )
 
-_LOGO = """            
-     0           0                                                       
-    0000000     000000               0000000000000   000000000000000     
-    0000000    0000000               000000000000      000000000         
-    0000000    000000  0000    0000     00000     0000  000000    0000   
-    0000000   0000000  000   0000000    000000000 000   00000   00000000 
-    00000000 00000000  000  0000    0   0000000   000    00000 00000   0 
-    00000000 0000000   000  00000       0000      000    0000  00000     
-    000000000000 0000  000   0000000    0000      000     000    00000   
-     000 000000  0000  000       00000  0000      000    0000        0000
-    0000  0000   000    00 0000000000   0000       00    0000 0000000000 
-    0000  0000   000         00000      00               00      0000    
-    0000   00    000                                                     
- """
-
-LOGO = "".join([(choice(ascii_letters + digits) if s == "0" else s) for s in _LOGO])
+SHARED_PROCESS_POOL = ProcessPoolExecutor()
 
 
 class DataFrameTable(DataTable):
@@ -98,7 +102,7 @@ class DataFrameTable(DataTable):
         return tuple(self.df.columns.values.tolist())
 
     def on_mount(self):
-        self.border_title = "Data"
+        self.border_title = "Table"
         self.cursor_type = "row"
 
 
@@ -183,7 +187,7 @@ class TableDialog(Static):
     def first_page(self):
         self.page_no = 1
 
-    @work(exclusive=True)
+    @work(exclusive=True, group="filter_table")
     async def filter_table(self, query: str):
         # noinspection PyBroadException
         try:
@@ -259,7 +263,7 @@ class HDUPane(TabPane):
                 yield EmptyDialog()
 
 
-def get_fits_content(fits_path: str | Path) -> tuple[dict]:
+def _get_fits_content(fits_path: str | Path) -> tuple[dict]:
     def is_table(hdu):
         return type(hdu) in [TableHDU, BinTableHDU]
 
@@ -286,6 +290,12 @@ def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     return content
 
 
+async def get_fits_content(filepath: Path):
+    loop = asyncio.get_event_loop()
+    contents, *_ = await loop.run_in_executor(SHARED_PROCESS_POOL, _get_fits_content, filepath),
+    return contents
+
+
 class FilteredDirectoryTree(DirectoryTree):
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         return [path for path in paths if not path.name.startswith(".")]
@@ -293,7 +303,6 @@ class FilteredDirectoryTree(DirectoryTree):
 
 class FileExplorer(ModalScreen):
     TITLE = "Open file"
-    SUB_TITLE = ""
 
     def __init__(self, rootdir: Path = Path.cwd()):
         super().__init__()
@@ -305,11 +314,14 @@ class FileExplorer(ModalScreen):
             yield FilteredDirectoryTree(self.rootdir)
         yield Footer()
 
-    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
-        if not _validate_fits(event.path):
+    @work(exclusive=True, group="file_check")
+    async def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
+        isvalid = await asyncio.to_thread(_validate_fits, event.path)
+        if not isvalid:
             self.query_one(DirectoryTree).add_class("error")
             return
         self.query_one(DirectoryTree).remove_class("error")
+        # noinspection PyAsyncCall
         self.dismiss(event.path)
 
 
@@ -317,7 +329,26 @@ class EscapableFileExplorer(FileExplorer):
     BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 
 
+class InfoScreen(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+
+    def get_text(self):
+        return Text.from_markup(
+            f"A FITS table viewer by G.D.\n"
+            f"[dim]https://github.com/peppedilillo\n"
+            f"[dim]https://gdilillo.com",
+            justify="center"
+        )
+
+    def compose(self) -> ComposeResult:
+        with Container():
+            yield Static(f"[green bold]{LOGO}")
+            yield Static(self.get_text())
+        yield Footer()
+
+
 class LogScreen(ModalScreen):
+    TITLE = "Log"
     BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 
     def compose(self) -> ComposeResult:
@@ -342,13 +373,14 @@ class Misfits(App):
 
     TITLE = "Misfits"
     CSS_PATH = "misfits.scss"
-    SCREENS = {"log": LogScreen, "file_explorer": FileExplorer}
+    SCREENS = {"log": LogScreen, "file_explorer": FileExplorer, "info": InfoScreen}
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Show log"),
+        ("ctrl+i", "push_screen('info')", "Show infos"),
         ("ctrl+o", "open_explorer", "Open file"),
     ]
 
-    def __init__(self, filepath: Path, root_dir: Path = Path.cwd()) -> None:
+    def __init__(self, filepath: Path | None, root_dir: Path = Path.cwd()) -> None:
         super().__init__()
         self.filepath = filepath
         self.rootdir = root_dir
@@ -379,7 +411,8 @@ class Misfits(App):
         tabs.loading = True
         await tabs.clear_panes()
         self.log_push(f"Opening '{self.filepath}'")
-        contents = await asyncio.to_thread(get_fits_content, self.filepath)
+        loop = asyncio.get_event_loop()
+        contents = await get_fits_content(self.filepath)
         for i, content in enumerate(contents):
             await tabs.add_pane(HDUPane(content))
             self.log_fitcontents(content)

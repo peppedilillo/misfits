@@ -92,6 +92,17 @@ LogScreen RichLog {
   background: $background;
 }
 
+InfoScreen {
+  align: center middle;
+}
+
+InfoScreen Container {
+  width: 76;
+  height: 20;
+  border: ascii $primary;
+  background: $surface;
+}
+
 FileExplorer {
   align: center middle
 }
