@@ -37,6 +37,7 @@ from textual.widgets import Tree
 from textual.design import ColorSystem
 from textual.app import DEFAULT_COLORS
 
+
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",
     secondary="#03A062",
@@ -363,12 +364,14 @@ class Misfits(App):
     async def on_mount(self):
         if not self.filepath:
             self.filepath = await self.push_screen_wait(FileExplorer(self.rootdir))
-        self.fits_content = self.populate_tabs()
+        # noinspection PyAsyncCall
+        self.populate_tabs()
 
     @work
     async def action_open_explorer(self):
         self.filepath = await self.push_screen_wait(EscapableFileExplorer(self.rootdir))
-        self.fits_content = self.populate_tabs()
+        # noinspection PyAsyncCall
+        self.populate_tabs()
 
     @work
     async def populate_tabs(self):
