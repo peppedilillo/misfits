@@ -306,11 +306,9 @@ class FileExplorer(ModalScreen):
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
         if not _validate_fits(event.path):
-            dirtree = self.query_one(DirectoryTree)
-            dirtree.add_class("error")
+            self.query_one(DirectoryTree).add_class("error")
             return
-        dirtree = self.query_one(DirectoryTree)
-        dirtree.remove_class("error")
+        self.query_one(DirectoryTree).remove_class("error")
         self.dismiss(event.path)
 
 
@@ -374,16 +372,6 @@ class Misfits(App):
 
     @work
     async def populate_tabs(self):
-        def log_fitcontents(content):
-            # fmt: off
-            self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}.")
-            if content["data"] is not None:
-                ncols = len(content["data"].columns) + len(content["multicols"]) if content["multicols"] else len(content["data"].columns)
-                self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns.")
-            if content["multicols"]:
-                self.log_push(f"Dropping multilevel columns: {', '.join(map(repr, content['multicols']))}", LogLevel.WARNING)
-            # fmt: on
-
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
         await tabs.clear_panes()
@@ -391,7 +379,7 @@ class Misfits(App):
         contents = await asyncio.to_thread(get_fits_content, self.filepath)
         for i, content in enumerate(contents):
             await tabs.add_pane(HDUPane(content))
-            log_fitcontents(content)
+            self.log_fitcontents(content)
         tabs.loading = False
 
     def log_push(self, message: str, level: LogLevel | None = LogLevel.INFO):
@@ -410,13 +398,29 @@ class Misfits(App):
     def log_pop(self) -> str | None:
         return self.logstack.pop(0) if self.logstack else None
 
+    def log_fitcontents(self, content):
+        # fmt: off
+        self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}.")
+        if content["data"] is not None:
+            ncols = len(content["data"].columns) + len(content["multicols"]) if content["multicols"] else len(content["data"].columns)
+            self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns.")
+        if content["multicols"]:
+            self.log_push(f"Dropping multilevel columns: {', '.join(map(repr, content['multicols']))}", LogLevel.WARNING)
+        # fmt: on
+
+
+FITS_SIGNATURE = b"SIMPLE  =                    T"
+
 
 def _validate_fits(filepath: Path) -> bool:
-    try:
-        _ = fits.getheader(filepath)
-    except OSError as e:
-        return False
-    return True
+    # Following the same approach of astropy.
+    with open(filepath, "rb") as file:
+        # FITS signature is supposed to be in the first 30 bytes, but to
+        # allow reading various invalid files we will check in the first
+        # card (80 bytes).
+        simple = file.read(80)
+    match_sig = simple[:29] == FITS_SIGNATURE[:-1] and simple[29:30] in (b"T", b"F")
+    return match_sig
 
 
 def click_validate_fits(
@@ -444,5 +448,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits("/Users/peppedilillo/Library/CloudStorage/Dropbox/Progetti/fits-tui/fermi-fits.fits.gz", Path().home())
+    app = Misfits(None, Path("/Users/peppedilillo/Dropbox/Progetti/PerformancesPaper/data"))
     app.run()
