@@ -18,7 +18,7 @@ DataFrameTable {
 }
 
 HeaderDialog {
-  width: 25;
+  width: 25; /* change HeaderDialog's ellipsis accordingly */
   border: round $secondary;
   background: $background;
   & :focus-within {
