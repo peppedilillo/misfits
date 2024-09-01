@@ -1,13 +1,29 @@
+Header {
+  background: $primary 20%;
+}
+
 DataTable > .datatable--header {
   text-style: bold;
   background: $accent 30%;
   color: $text;
 }
 
+DataFrameTable {
+  height: 1fr;
+  border: round $secondary;
+  border-subtitle-align: right;
+  & :focus-within {
+    border: round $accent;
+  }
+}
+
 HeaderDialog {
-  width: 24;
+  width: 25;
   border: round $secondary;
   background: $background;
+  & :focus-within {
+    border: round $accent;
+  }
 }
 
 TableDialog {
@@ -36,35 +52,16 @@ TabPane {
   border: none;
 }
 
-DataFrameTable {
-  border: round $secondary;
-  height: 1fr;
-}
-
-PageControls {
-  border: round $secondary;
-  height: 3;
-}
-
 InputFilter {
   border: round $secondary;
   height: 3;
+  &:focus-within {
+    border: round $accent;
+  }
+  &.error {
+    border: round $error;
+  }
 }
-
-/* this is required to have the page controls
- * centered. i could not find a solution withtout
- * addressing the buttons' container */
-PageControls Horizontal {
-  align: center middle;
-}
-
-PageControls Button {
-  min-width: 6;
-  height: 1;
-  border: none;
-  background: $background;
-}
-
 
 InputFilter Input {
   height: 1;
@@ -72,18 +69,18 @@ InputFilter Input {
   border: none;
 }
 
-MoreScreen {
+HeaderEntry {
   align: center middle;
 }
 
-MoreScreen Container {
+HeaderEntry Container {
   width: 48;
   height: 12;
   border: thick $background;
   background: $surface;
 }
 
-MoreScreen TextArea {
+HeaderEntry TextArea {
   margin: 1;
   border: none;
 }
@@ -98,7 +95,7 @@ InfoScreen {
 
 InfoScreen Container {
   width: 76;
-  height: 20;
+  height: 18;
   border: ascii $primary;
   background: $surface;
 }
@@ -127,4 +124,35 @@ FileExplorer DirectoryTree {
 FileExplorer Label {
   margin: 1 0 ;
   width: auto;
+}
+
+FileInput {
+  background: $background;
+  border: round $primary;
+  & :focus-within {
+    border: round $accent;
+  }
+  &.error {
+    border: round $error;
+  }
+}
+
+FileInput Container {
+  width: 1fr;
+}
+
+FileInput Button {
+  border: none;
+  height: 1;
+  max-width: 10;
+}
+
+FileInput #fi_send {
+  background: $primary;
+}
+
+FileInput Input {
+  height: 1;
+  width: 1fr;
+  border: none;
 }
