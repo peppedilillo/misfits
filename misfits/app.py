@@ -1,5 +1,7 @@
 import asyncio
+from asyncio import sleep
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 from math import ceil
@@ -7,10 +9,8 @@ from pathlib import Path
 from random import choice
 from string import ascii_letters
 from string import digits
-from typing import Iterable, Callable
-from contextlib import contextmanager
-from asyncio import sleep
 from time import perf_counter
+from typing import Callable, Iterable
 
 from astropy.io import fits
 from astropy.io.fits.hdu.table import BinTableHDU
@@ -19,6 +19,7 @@ from astropy.table import Table
 import click
 import pandas as pd
 from rich.text import Text
+from textual import events
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
@@ -26,6 +27,7 @@ from textual.app import DEFAULT_COLORS
 from textual.containers import Container
 from textual.containers import Horizontal
 from textual.design import ColorSystem
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import DataTable
@@ -40,8 +42,6 @@ from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import TextArea
 from textual.widgets import Tree
-from textual.message import Message
-from textual import events
 
 _LOGO = """    0           0                                                       
    0000000     000000               0000000000000   000000000000000     
@@ -74,6 +74,7 @@ SHARED_PROCESS_POOL = ProcessPoolExecutor(max_workers=1)
 
 class DataFrameTable(DataTable):
     """Display Pandas dataframe in DataTable widget."""
+
     def add_df(self, df: pd.DataFrame):
         """Add DataFrame data to DataTable."""
         self.df = df
@@ -150,7 +151,9 @@ class TableDialog(Static):
     async def filter_table(self, query: str):
         # noinspection PyBroadException
         try:
-            filtered_df = await asyncio.to_thread(self.df.query, query) if query else self.df
+            filtered_df = (
+                await asyncio.to_thread(self.df.query, query) if query else self.df
+            )
         except Exception as e:
             self.query_one(InputFilter).add_class("error")
             return
