@@ -50,7 +50,6 @@ from textual.widgets import TabPane
 from textual.widgets import TextArea
 from textual.widgets import Tree
 
-
 _LOGO = """    0           0                                                       
    0000000     000000               0000000000000   000000000000000     
    0000000    0000000               000000000000      000000000         
@@ -105,6 +104,7 @@ class DataFrameTable(DataTable):
 
 class InputFilter(Static):
     """A prompt widget for filtering a table"""
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label("[dim italic] query: ")
@@ -284,6 +284,7 @@ class HDUPane(TabPane):
 def _get_fits_content(fits_path: str | Path) -> tuple[dict]:
     """Retrieves content from a FITS file and stores it in a tuple dict.
     Each tuple's records referes to one FITS HDU. CPU-heavy."""
+
     def is_table(hdu):
         return type(hdu) in [TableHDU, BinTableHDU]
 
