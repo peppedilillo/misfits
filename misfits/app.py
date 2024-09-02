@@ -460,7 +460,7 @@ class Misfits(App):
     SCREENS = {"log": LogScreen, "file_explorer": FileExplorer, "info": InfoScreen}
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Log"),
-        ("ctrl+i", "push_screen('info')", "Info"),
+        ("ctrl+j", "push_screen('info')", "Info"),
         ("ctrl+o", "open_explorer", "Open"),
     ]
 
