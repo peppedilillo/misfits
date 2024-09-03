@@ -145,6 +145,17 @@ class TableDialog(Static):
         self.border_title = "Table"
         self.update_page_display()
 
+    # this is an unfortunate solution to an unfortunate problem.
+    # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
+    # to its tabs. since tabs are holding references to large tables this may cause
+    # potentially huge memory leaks. best solution i've managed so far is to delete
+    # references to tables on unmounting. i've tried different solutions such as
+    # passing references to functions around, with no luck.
+    # TODO: remove once textual resolves this bug.
+    def on_unmount(self):
+        del self.df
+        del self.mask
+
     # async is needed since `filter_table` calls a worker
     async def on_input_changed(self, event: Input.Submitted):
         # noinspection PyAsyncCall
@@ -152,9 +163,17 @@ class TableDialog(Static):
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
-    async def filter_table(self, query: str):
-        """Filters a table according to a query and shows it's fist page."""
+    async def filter_table(self, query: str, delay=0.25):
+        """
+        Filters a table according to a query and shows it's fist page.
+
+        :param query: the filter query
+        :param delay: sets sleep time at start to prevent function calls while
+        writing query.
+        :return:
+        """
         # noinspection PyBroadException
+        await sleep(delay)
         try:
             fdf = await asyncio.to_thread(self.df.query, query) if query else self.df
         except Exception as e:
@@ -264,6 +283,11 @@ class HeaderDialog(Tree):
         self.show_guides = True
         self.root.expand()
 
+    # see note on `TableDialog.on_unmount`.
+    # TODO: remove once textual resolves this bug.
+    def on_unmount(self):
+        del self.leafs
+
 
 class HDUPane(TabPane):
     """A container for header and table widgets"""
@@ -279,6 +303,11 @@ class HDUPane(TabPane):
                 yield TableDialog(self.content["data"])
             else:
                 yield EmptyDialog()
+
+    # see note on `TableDialog.on_unmount`.
+    # TODO: remove once textual resolves this bug.
+    def on_unmount(self):
+        del self.content
 
 
 def _get_fits_content(fits_path: str | Path) -> tuple[dict]:
