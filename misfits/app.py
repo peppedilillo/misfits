@@ -8,7 +8,7 @@ Date:   August 2024
 import asyncio
 from asyncio import sleep
 from concurrent.futures import ProcessPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from datetime import datetime
 from enum import Enum
 from math import ceil
@@ -482,15 +482,24 @@ class Misfits(App):
         yield FileInput()
         yield Footer()
 
-    @contextmanager
-    def disable_inputs(self):
-        """Disables input and shows a loading animation while tables are read into memory."""
+    @asynccontextmanager
+    async def disable_inputs(self, fileinput_delay=0.5):
+        """
+        Disables input and shows a loading animation while tables are read into memory.
+
+        :param fileinput_delay: seconds delay between end of loading indicator and
+        file input prompt release.
+        :return:
+        """
         fileinput = self.query_one(FileInput)
         fileinput.disabled = True
         tabs = self.query_one(TabbedContent)
         tabs.loading = True
         yield
         tabs.loading = False
+        # we wait a bit before releasing the input because quick, repeated sends can
+        # cause a tab to not load properly
+        await sleep(fileinput_delay)
         fileinput.disabled = False
 
     # `push_screen_wait` requires a worker
@@ -523,14 +532,16 @@ class Misfits(App):
         self.query_one(FileInput).remove_class("error")
 
     # calls CPU-heavy `get_fits_content`, requiring a worker
-    @work
+    # exclusive because otherwise would result in an error everytime we attempt
+    # to open a new while one is still loading.
+    @work(exclusive=True)
     async def populate_tabs(self, mintime=0.5) -> None:
         """
         Fills the tabs with data read from the FITS' HDUs.
 
         :param mintime: smallest time in which the loading indicator is displayed.
         """
-        with self.disable_inputs():
+        async with self.disable_inputs():
             with catchtime() as elapsed:
                 tabs = self.query_one(TabbedContent)
                 await tabs.clear_panes()
