@@ -1,0 +1,6 @@
+* text=auto
+*.tcss          eol=lf
+*.py            eol=lf
+*.jpg           binary
+*.jpeg          binary
+*.png           binary

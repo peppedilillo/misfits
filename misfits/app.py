@@ -485,7 +485,7 @@ class Misfits(App):
     """Misfits, the main app."""
 
     TITLE = "Misfits"
-    CSS_PATH = "misfits.scss"
+    CSS_PATH = "misfits.tcss"
     SCREENS = {"log": LogScreen, "file_explorer": FileExplorer, "info": InfoScreen}
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Log"),
@@ -512,7 +512,7 @@ class Misfits(App):
         yield Footer()
 
     @asynccontextmanager
-    async def disable_inputs(self, fileinput_delay=0.5):
+    async def disable_inputs(self, fileinput_delay=0.25):
         """
         Disables input and shows a loading animation while tables are read into memory.
 
@@ -546,10 +546,10 @@ class Misfits(App):
         if not _validate_fits(input_path):
             self.query_one(FileInput).add_class("error")
             return
+        self.query_one(FileInput).remove_class("error")
         self.filepath = input_path
         # noinspection PyAsyncCall
         self.populate_tabs()
-        self.query_one(FileInput).remove_class("error")
 
     # `push_screen_wait` requires a worker
     @work
@@ -564,7 +564,7 @@ class Misfits(App):
     # exclusive because otherwise would result in an error everytime we attempt
     # to open a new while one is still loading.
     @work(exclusive=True)
-    async def populate_tabs(self, mintime=0.5) -> None:
+    async def populate_tabs(self, mintime=0.25) -> None:
         """
         Fills the tabs with data read from the FITS' HDUs.
 
