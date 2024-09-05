@@ -1,7 +1,0 @@
-*.tcss          eol=lf
-*.py            eol=lf
-.gitattributes  eol=lf
-.gitignore      eol=lf
-*.jpg           binary
-*.jpeg          binary
-*.png           binary
