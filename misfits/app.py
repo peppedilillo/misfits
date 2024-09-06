@@ -5,67 +5,45 @@ Author: Giuseppe Dilillo
 Date:   August 2024
 """
 
-import asyncio
 from asyncio import sleep
-from concurrent.futures import ProcessPoolExecutor
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 from math import ceil
 from pathlib import Path
-from random import choice
-from string import ascii_letters
-from string import digits
 from time import perf_counter
-from typing import Callable, Iterable
+from typing import Callable
 
 from astropy.io import fits
-from astropy.io.fits.hdu.table import BinTableHDU
-from astropy.io.fits.hdu.table import TableHDU
-from astropy.table import Table
 import click
-import pandas as pd
-from rich.text import Text
 from textual import events
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
 from textual.app import DEFAULT_COLORS
-from textual.containers import Container
 from textual.containers import Horizontal
 from textual.design import ColorSystem
 from textual.message import Message
-from textual.screen import ModalScreen
 from textual.widgets import Button
 from textual.widgets import DataTable
-from textual.widgets import DirectoryTree
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Label
-from textual.widgets import RichLog
 from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
-from textual.widgets import TextArea
 from textual.widgets import Tree
+from textual.worker import get_current_worker
 
-_LOGO = """    0           0                                                       
-   0000000     000000               0000000000000   000000000000000     
-   0000000    0000000               000000000000      000000000         
-   0000000    000000  0000    0000     00000     0000  000000    0000   
-   0000000   0000000  000   0000000    000000000 000   00000   00000000 
-   00000000 00000000  000  0000    0   0000000   000    00000 00000   0 
-   00000000 0000000   000  00000       0000      000    0000  00000     
-   000000000000 0000  000   0000000    0000      000     000    00000   
-    000 000000  0000  000       00000  0000      000    0000        0000
-   0000  0000   000    00 0000000000   0000       00    0000 0000000000 
-   0000  0000   000         00000      00               00      0000    
-   0000   00    000                                                     
-"""
-
-LOGO = "".join([(choice(ascii_letters + digits) if s == "0" else s) for s in _LOGO])
-
+from misfits.data import _validate_fits
+from misfits.data import filter_array
+from misfits.data import get_fits_content
+from misfits.screens import EscapableFileExplorerScreen, HeaderEntry
+from misfits.screens import FileExplorerScreen
+from misfits.screens import InfoScreen
+from misfits.screens import LogScreen
 
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",  # matrix green
@@ -77,25 +55,19 @@ DEFAULT_COLORS["dark"] = ColorSystem(
     dark=True,
 )
 
-SHARED_PROCESS_POOL = ProcessPoolExecutor(max_workers=1)
 
+class NumpyTable(DataTable):
+    """Display numpy structured array as a table."""
 
-class DataFrameTable(DataTable):
-    """Display Pandas dataframe in DataTable widget.
-    Based on `https://github.com/dannywade/textual-pandas`"""
+    def add_arr(self, arr: fits.fitsrec):
+        """Add array data to DataTable."""
+        self.add_columns(*arr.columns.names)
+        self.add_rows(arr)
 
-    def add_df(self, df: pd.DataFrame):
-        """Add DataFrame data to DataTable."""
-        self.add_columns(*tuple(df.columns.values.tolist()))
-        self.add_rows(list(df.itertuples(index=False, name=None))[0:])
-        return self
-
-    def update_df(self, df: pd.DataFrame):
-        """Update DataFrameTable with a new DataFrame."""
-        # Clear existing datatable
+    def update_arr(self, arr: fits.fitsrec):
+        """Update with a new table."""
         self.clear(columns=True)
-        # Redraw table with new dataframe
-        self.add_df(df)
+        self.add_arr(arr)
 
     def on_mount(self):
         self.border_title = "Table"
@@ -125,20 +97,21 @@ class TableDialog(Static):
         ("ctrl+e", "last_page()", "Last"),
     ]
 
-    def __init__(self, df: pd.DataFrame, page_len: int = 100):
+    def __init__(self, arr: fits.FITS_rec, page_len: int = 100):
         """
-        :param df: The dataframe to show
+        :param arr: The dataframe to show
         :param page_len: How many dataframe rows are shown for each page.
         """
         super().__init__()
-        self.df = df
-        self.mask = df.index
+        self._arr = arr
+        self.arr = arr
+        self.mask = None
         self.page_len = page_len
         self.page_no = 1  # starts from one
-        self.page_tot = max(ceil(len(df) / page_len), 1)
+        self.page_tot = max(ceil(len(arr) / page_len), 1)
 
     def compose(self) -> ComposeResult:
-        yield DataFrameTable()
+        yield NumpyTable()
         yield InputFilter()
 
     def on_mount(self):
@@ -153,7 +126,8 @@ class TableDialog(Static):
     # passing references to functions around, with no luck.
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
-        del self.df
+        del self._arr
+        del self.arr
         del self.mask
 
     # async is needed since `filter_table` calls a worker
@@ -162,7 +136,7 @@ class TableDialog(Static):
         self.filter_table(event.value)
 
     # runs possibly slow filter operation with a worker to avoid UI lags
-    @work(exclusive=True, group="filter_table")
+    @work(exclusive=True, thread=True, group="filter_table")
     async def filter_table(self, query: str, delay=0.25):
         """
         Filters a table according to a query and shows it's fist page.
@@ -173,21 +147,20 @@ class TableDialog(Static):
         :return:
         """
         # noinspection PyBroadException
-        await sleep(delay)
+        worker = get_current_worker()
         try:
-            fdf = await asyncio.to_thread(self.df.query, query) if query else self.df
+            self.arr = filter_array(query, self._arr)
         except Exception as e:
-            self.query_one(InputFilter).add_class("error")
+            if not worker.is_cancelled:
+                infilter = self.query_one(InputFilter)
+                self.app.call_from_thread(infilter.add_class, "error")
             return
-        self.mask = fdf.index
-        self.page_no = 1
-        self.page_tot = max(ceil(len(self.mask) / self.page_len), 1)
-        self.update_page_display()
-        self.query_one(InputFilter).remove_class("error")
-        self.app.log_push(
-            f"Filtered table by query {repr(query)}, "
-            f"{len(fdf)} entries matching the query."
-        )
+        if not worker.is_cancelled:
+            self.app.call_from_thread(self.update_page_display)
+            infilter = self.query_one(InputFilter)
+            self.app.call_from_thread(infilter.remove_class, "error")
+            self.page_no = 1
+            self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
 
     def page_slice(self):
         """Returns a slice which can be used to index the present page."""
@@ -196,11 +169,14 @@ class TableDialog(Static):
 
     def update_page_display(self):
         """Displays the present table page."""
-        table = self.query_one(DataFrameTable)
-        table.update_df(self.df.iloc[self.mask[self.page_slice()]])
-        table.border_subtitle = f"page {self.page_no} / {self.page_tot} "
+        table = self.query_one(NumpyTable)
+        table.update_arr(self.arr[self.page_slice()])
+        self.query_one(NumpyTable).border_subtitle = (
+            f"page {self.page_no} / {self.page_tot} "
+        )
 
-    def action_next_page(self):
+    @work(exclusive=True)
+    async def action_next_page(self):
         """Scrolls to next page."""
         if self.page_no < self.page_tot:
             self.page_no += 1
@@ -233,23 +209,6 @@ class EmptyDialog(Static):
 
     def on_mount(self):
         self.border_title = "Table"
-
-
-class HeaderEntry(ModalScreen):
-    """Displays header's entries in a pop-up screen. Useful with long entries."""
-
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
-    TITLE = "Header entry"
-
-    def __init__(self, text: str):
-        super().__init__()
-        self.text = text
-
-    def compose(self) -> ComposeResult:
-        with Container():
-            yield Header()
-            yield TextArea.code_editor(self.text, read_only=True)
-        yield Footer()
 
 
 class HeaderDialog(Tree):
@@ -310,110 +269,6 @@ class HDUPane(TabPane):
         del self.content
 
 
-def _get_fits_content(fits_path: str | Path) -> tuple[dict]:
-    """Retrieves content from a FITS file and stores it in a tuple dict.
-    Each tuple's records referes to one FITS HDU. CPU-heavy."""
-
-    def is_table(hdu):
-        return type(hdu) in [TableHDU, BinTableHDU]
-
-    def multicols(data):
-        return [c.name for c in data.columns if len(c.array.shape) > 1]
-
-    def to_pandas(data):
-        scols = [c.name for c in data.columns if len(c.array.shape) == 1]
-        # filters out multicolumns
-        # TODO: improve how we deal with multicolumn tables
-        return Table(data)[scols].to_pandas()
-
-    with fits.open(fits_path) as hdul:
-        content = tuple(
-            {
-                "name": hdu.name,
-                "type": hdu.__class__.__name__,
-                "header": dict(hdu.header) if hdu.header else None,
-                "is_table": is_table,
-                "data": to_pandas(hdu.data) if is_table else None,
-                "multicols": multicols(hdu.data) if is_table else None,
-            }
-            for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
-        )
-    return content
-
-
-async def get_fits_content(filepath: Path):
-    """Factors `get_fits_content` to a separate process.
-    This precaution is taken to avoid staggering and lags with the UI."""
-    loop = asyncio.get_event_loop()
-    contents, *_ = (
-        await loop.run_in_executor(SHARED_PROCESS_POOL, _get_fits_content, filepath),
-    )
-    return contents
-
-
-class FilteredDirectoryTree(DirectoryTree):
-    """A directory tree widget filtering hidden files."""
-
-    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
-        return [path for path in paths if not path.name.startswith(".")]
-
-
-class FileExplorer(ModalScreen):
-    """A pop-up screen showing a file explorer so that the user may choose an
-    input navigating the file system. To be used at main app's start-up,
-     if no input file is provided. For this reason the screen is not escapable."""
-
-    TITLE = "Open file"
-
-    def __init__(self, rootdir: Path = Path.cwd()):
-        super().__init__()
-        self.rootdir = rootdir
-
-    def compose(self) -> ComposeResult:
-        with Container():
-            yield Header(show_clock=False)
-            yield FilteredDirectoryTree(self.rootdir)
-        yield Footer()
-
-    # threaded because validating requires IO which may cause laggish behaviour
-    @work(exclusive=True, group="file_check")
-    async def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
-        isvalid = await asyncio.to_thread(_validate_fits, event.path)
-        if not isvalid:
-            self.query_one(DirectoryTree).add_class("error")
-            return
-        self.query_one(DirectoryTree).remove_class("error")
-        # noinspection PyAsyncCall
-        self.dismiss(event.path)
-
-
-class EscapableFileExplorer(FileExplorer):
-    """Like `FileExplorer` but with bindings to leave the screen.
-    To be used when a file input has already been provided."""
-
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
-
-
-class InfoScreen(ModalScreen):
-    """A pop-up showing some cool infos on the program."""
-
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
-
-    def get_text(self):
-        return Text.from_markup(
-            f"A FITS table viewer by G.D.\n"
-            f"[dim]https://github.com/peppedilillo\n"
-            f"https://gdilillo.com",
-            justify="center",
-        )
-
-    def compose(self) -> ComposeResult:
-        with Container():
-            yield Static(f"[green bold]{LOGO}")
-            yield Static(self.get_text())
-        yield Footer()
-
-
 class FileInput(Input):
     """A prompt widget to input via file paths."""
 
@@ -449,24 +304,6 @@ class FileInput(Input):
         self.query_one(Input).value = value
 
 
-class LogScreen(ModalScreen):
-    """An alternative screen showing a log"""
-
-    TITLE = "Log"
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-        yield RichLog(highlight=True, markup=True)
-        yield Footer()
-
-    def on_screen_resume(self):
-        """When screen is shown, pushes message on the stack to the screen."""
-        log = self.query_one(RichLog)
-        while line := self.app.log_pop():
-            log.write(line)
-
-
 class LogLevel(Enum):
     INFO = 0
     WARNING = 1
@@ -486,7 +323,7 @@ class Misfits(App):
 
     TITLE = "Misfits"
     CSS_PATH = "misfits.tcss"
-    SCREENS = {"log": LogScreen, "file_explorer": FileExplorer, "info": InfoScreen}
+    SCREENS = {"log": LogScreen, "file_explorer": FileExplorerScreen, "info": InfoScreen}
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Log"),
         ("ctrl+j", "push_screen('info')", "Info"),
@@ -535,7 +372,7 @@ class Misfits(App):
     @work
     async def on_mount(self):
         if not self.filepath:
-            self.filepath = await self.push_screen_wait(FileExplorer(self.rootdir))
+            self.filepath = await self.push_screen_wait(FileExplorerScreen(self.rootdir))
         self.query_one(FileInput).set_input_value(str(self.filepath))
         # noinspection PyAsyncCall
         self.populate_tabs()
@@ -554,7 +391,7 @@ class Misfits(App):
     # `push_screen_wait` requires a worker
     @work
     async def action_open_explorer(self):
-        self.filepath = await self.push_screen_wait(EscapableFileExplorer(self.rootdir))
+        self.filepath = await self.push_screen_wait(EscapableFileExplorerScreen(self.rootdir))
         # noinspection PyAsyncCall
         self.populate_tabs()
         self.query_one(FileInput).set_input_value(str(self.filepath))
@@ -613,24 +450,6 @@ class Misfits(App):
         # fmt: on
 
 
-FITS_SIGNATURE = b"SIMPLE  =                    T"
-
-
-def _validate_fits(filepath: Path) -> bool:
-    """Checks if a file is a FITS."""
-    # Following the same approach of astropy.
-    try:
-        with open(filepath, "rb") as file:
-            # FITS signature is supposed to be in the first 30 bytes, but to
-            # allow reading various invalid files we will check in the first
-            # card (80 bytes).
-            simple = file.read(80)
-    except OSError:
-        return False
-    match_sig = simple[:29] == FITS_SIGNATURE[:-1] and simple[29:30] in (b"T", b"F")
-    return match_sig
-
-
 def click_validate_fits(
     ctx: click.Context, param: click.Parameter, filepath: Path
 ) -> Path:
@@ -659,7 +478,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits(
-        None, Path("/Users/peppedilillo/Dropbox/Progetti/PerformancesPaper/data")
-    )
+    app = Misfits(None, Path(r"D:/Dropbox/Progetti/PerformancesPaper/"))
     app.run()

@@ -8,7 +8,7 @@ DataTable > .datatable--header {
   color: $text;
 }
 
-DataFrameTable {
+NumpyTable {
   height: 1fr;
   border: round $secondary;
   border-subtitle-align: right;
@@ -100,11 +100,11 @@ InfoScreen Container {
   background: $surface;
 }
 
-FileExplorer {
+FileExplorerScreen {
   align: center middle
 }
 
-FileExplorer Container {
+FileExplorerScreen Container {
   align: center middle;
   width: 60;
   height: 18;
@@ -113,7 +113,7 @@ FileExplorer Container {
   background: $surface;
 }
 
-FileExplorer DirectoryTree {
+FileExplorerScreen DirectoryTree {
   border: round $secondary;
   background: $background;
   &.error {
@@ -121,7 +121,7 @@ FileExplorer DirectoryTree {
   }
 }
 
-FileExplorer Label {
+FileExplorerScreen Label {
   margin: 1 0 ;
   width: auto;
 }

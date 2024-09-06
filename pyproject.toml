@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
     "astropy >= 6.1",
     "pandas >= 2.2",
+    "terminaltexteffects >= 0.11",
     "textual >= 0.77",
     "click >= 8.1",
 ]
@@ -29,6 +30,7 @@ dev = [
     "black>=24.8",
     "isort>=5.13",
     "mypy>=1.11",
+    "ipython>=8.27",
 ]
 
 [project.scripts]
