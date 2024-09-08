@@ -59,26 +59,12 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 )
 
 
-def format_cell(cell):
-    if isinstance(cell, np.generic):
-        if cell.dtype.kind == "f":
-            return f"{cell:.2f}"
-        else:
-            return f"{cell}"
-    elif isinstance(cell, str):
-        return cell
-    elif isinstance(cell, np.ndarray):
-        return Text(format_cell(cell[1]) + ",..", style="dim")
-    else:
-        return str(cell)
-
-
 class NumpyTable(DataTable):
     """Display numpy structured array as a table."""
     def add_arr(self, arr: fits.fitsrec):
         """Add array data to DataTable."""
         self.add_columns(*arr.columns.names)
-        self.add_rows([tuple(format_cell(e) for e in row) for row in arr])
+        self.add_rows(arr)
 
     def update_arr(self, arr: fits.fitsrec):
         """Update with a new table."""
