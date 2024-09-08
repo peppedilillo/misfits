@@ -77,6 +77,7 @@ class EffectLabel(Static):
         self.height = text.count("\n")
         self.styles.width = self.width + 2
         self.styles.height = self.height + 2
+        self.fps = 60
 
     async def on_mount(self):
         self.run_worker(self.run_effect(), exclusive=True)
@@ -96,4 +97,4 @@ class EffectLabel(Static):
         for frame in frames:
             self.text = frame
             self.update(Text.from_ansi(self.text))
-            await asyncio.sleep(0)
+            await asyncio.sleep(1 / self.fps)

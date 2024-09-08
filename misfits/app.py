@@ -15,6 +15,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable
 
+import numpy as np
 from astropy.io import fits
 import click
 from textual import events
@@ -45,6 +46,8 @@ from misfits.screens import FileExplorerScreen
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
 
+from rich.text import Text
+
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",  # matrix green
     secondary="#03A062",
@@ -56,13 +59,26 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 )
 
 
+def format_cell(cell):
+    if isinstance(cell, np.generic):
+        if cell.dtype.kind == "f":
+            return f"{cell:.2f}"
+        else:
+            return f"{cell}"
+    elif isinstance(cell, str):
+        return cell
+    elif isinstance(cell, np.ndarray):
+        return Text(format_cell(cell[1]) + ",..", style="dim")
+    else:
+        return str(cell)
+
+
 class NumpyTable(DataTable):
     """Display numpy structured array as a table."""
-
     def add_arr(self, arr: fits.fitsrec):
         """Add array data to DataTable."""
         self.add_columns(*arr.columns.names)
-        self.add_rows(arr)
+        self.add_rows([tuple(format_cell(e) for e in row) for row in arr])
 
     def update_arr(self, arr: fits.fitsrec):
         """Update with a new table."""
@@ -71,7 +87,7 @@ class NumpyTable(DataTable):
 
     def on_mount(self):
         self.border_title = "Table"
-        self.cursor_type = "row"
+        self.cursor_type = "cell"
 
 
 class InputFilter(Static):
@@ -97,7 +113,7 @@ class TableDialog(Static):
         ("ctrl+e", "last_page()", "Last"),
     ]
 
-    def __init__(self, arr: fits.FITS_rec, page_len: int = 100):
+    def __init__(self, arr: fits.FITS_rec, page_len: int = 50):
         """
         :param arr: The dataframe to show
         :param page_len: How many dataframe rows are shown for each page.
@@ -137,7 +153,7 @@ class TableDialog(Static):
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, thread=True, group="filter_table")
-    async def filter_table(self, query: str, delay=0.25):
+    async def filter_table(self, query: str):
         """
         Filters a table according to a query and shows it's fist page.
 
@@ -170,7 +186,8 @@ class TableDialog(Static):
     def update_page_display(self):
         """Displays the present table page."""
         table = self.query_one(NumpyTable)
-        table.update_arr(self.arr[self.page_slice()])
+        arr = self.arr[self.page_slice()]
+        table.update_arr(arr)
         self.query_one(NumpyTable).border_subtitle = (
             f"page {self.page_no} / {self.page_tot} "
         )
