@@ -15,7 +15,6 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable
 
-import numpy as np
 from astropy.io import fits
 import click
 from textual import events
@@ -46,7 +45,6 @@ from misfits.screens import FileExplorerScreen
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
 
-from rich.text import Text
 
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",  # matrix green
@@ -59,17 +57,13 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 )
 
 
-class NumpyTable(DataTable):
+class FitsTable(DataTable):
     """Display numpy structured array as a table."""
-    def add_arr(self, arr: fits.fitsrec):
-        """Add array data to DataTable."""
-        self.add_columns(*arr.columns.names)
-        self.add_rows(arr)
-
-    def update_arr(self, arr: fits.fitsrec):
+    def update_arr(self, arr: fits.fitsrec, cols):
         """Update with a new table."""
         self.clear(columns=True)
-        self.add_arr(arr)
+        self.add_columns(*cols)
+        self.add_rows([tuple(row[c] for c in cols) for row in arr])
 
     def on_mount(self):
         self.border_title = "Table"
@@ -99,7 +93,7 @@ class TableDialog(Static):
         ("ctrl+e", "last_page()", "Last"),
     ]
 
-    def __init__(self, arr: fits.FITS_rec, page_len: int = 50):
+    def __init__(self, arr: fits.FITS_rec, cols, page_len: int = 50):
         """
         :param arr: The dataframe to show
         :param page_len: How many dataframe rows are shown for each page.
@@ -107,13 +101,14 @@ class TableDialog(Static):
         super().__init__()
         self._arr = arr
         self.arr = arr
+        self.cols = cols
         self.mask = None
         self.page_len = page_len
         self.page_no = 1  # starts from one
         self.page_tot = max(ceil(len(arr) / page_len), 1)
 
     def compose(self) -> ComposeResult:
-        yield NumpyTable()
+        yield FitsTable()
         yield InputFilter()
 
     def on_mount(self):
@@ -151,18 +146,19 @@ class TableDialog(Static):
         # noinspection PyBroadException
         worker = get_current_worker()
         try:
-            self.arr = filter_array(query, self._arr)
+            filtered_arr = filter_array(query, self._arr)
         except Exception as e:
             if not worker.is_cancelled:
                 infilter = self.query_one(InputFilter)
                 self.app.call_from_thread(infilter.add_class, "error")
             return
         if not worker.is_cancelled:
+            self.arr = filtered_arr
             self.app.call_from_thread(self.update_page_display)
-            infilter = self.query_one(InputFilter)
-            self.app.call_from_thread(infilter.remove_class, "error")
             self.page_no = 1
             self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
+            infilter = self.query_one(InputFilter)
+            self.app.call_from_thread(infilter.remove_class, "error")
 
     def page_slice(self):
         """Returns a slice which can be used to index the present page."""
@@ -171,14 +167,13 @@ class TableDialog(Static):
 
     def update_page_display(self):
         """Displays the present table page."""
-        table = self.query_one(NumpyTable)
+        table = self.query_one(FitsTable)
         arr = self.arr[self.page_slice()]
-        table.update_arr(arr)
-        self.query_one(NumpyTable).border_subtitle = (
+        table.update_arr(arr, self.cols)
+        self.query_one(FitsTable).border_subtitle = (
             f"page {self.page_no} / {self.page_tot} "
         )
 
-    @work(exclusive=True)
     async def action_next_page(self):
         """Scrolls to next page."""
         if self.page_no < self.page_tot:
@@ -262,7 +257,7 @@ class HDUPane(TabPane):
         with Horizontal():
             yield HeaderDialog(self.content["header"])
             if self.content["is_table"]:
-                yield TableDialog(self.content["data"])
+                yield TableDialog(self.content["data"], self.content["columns"])
             else:
                 yield EmptyDialog()
 
@@ -446,10 +441,8 @@ class Misfits(App):
         # fmt: off
         self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}")
         if content["data"] is not None:
-            ncols = len(content["data"].columns) + len(content["multicols"]) if content["multicols"] else len(content["data"].columns)
+            ncols = len(content["data"].columns)
             self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns")
-        if content["multicols"]:
-            self.log_push(f"Dropping multilevel columns: {', '.join(map(repr, content['multicols']))}", LogLevel.WARNING)
         # fmt: on
 
 
@@ -481,5 +474,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits(None, Path(r"D:/Dropbox/Progetti/PerformancesPaper/"))
+    app = Misfits(None, Path(r"D:/Dropbox/Progetti/"))
     app.run()

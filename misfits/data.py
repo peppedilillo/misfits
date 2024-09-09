@@ -27,7 +27,7 @@ def get_cleaned_column_resolvers(arr) -> dict[Hashable, Series]:
 
 
 def filter_array(query: str, arr: fits.FITS_rec) -> fits.FITS_rec:
-    if query is None:
+    if query == "":
         return arr
     mask = _eval(query, resolvers=(get_cleaned_column_resolvers(arr),))
     if mask.dtype != np.dtype("bool") or mask.shape != (len(arr),):
@@ -42,8 +42,9 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     def is_table(hdu):
         return type(hdu) in [TableHDU, BinTableHDU]
 
-    def multicols(data):
-        return [c.name for c in data.columns if len(c.array.shape) > 1]
+    def columns(data):
+        return [c.name for c in data.columns if len(c.array.shape) <= 1]
+        # return [c.name for c in data.columns if not ("Q" in c.format or "P" in c.format)]
 
     with fits.open(fits_path) as hdul:
         content = tuple(
@@ -53,7 +54,7 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
                 "header": dict(hdu.header) if hdu.header else None,
                 "is_table": is_table,
                 "data": hdu.data if is_table else None,
-                "multicols": multicols(hdu.data) if is_table else None,
+                "columns": columns(hdu.data) if is_table else None,
             }
             for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
         )
