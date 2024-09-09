@@ -39,26 +39,32 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     """Retrieves content from a FITS file and stores it in a tuple dict.
     Each tuple's records referes to one FITS HDU. CPU-heavy."""
 
-    def is_table(hdu):
+    def is_table(hdu: fits.FitsHDU):
         return type(hdu) in [TableHDU, BinTableHDU]
 
-    def columns(data):
-        return [c.name for c in data.columns if len(c.array.shape) <= 1]
-        # return [c.name for c in data.columns if not ("Q" in c.format or "P" in c.format)]
+    def single_columns(hdu: fits.FitsHDU):
+        return [c.name for c in hdu.data.columns if len(c.array.shape) <= 1]
 
+    def array_columns(hdu: fits.FitsHDU):
+        return [c.name for c in hdu.data.columns if len(c.array.shape) > 1]
+
+    def variable_len_columns(hdu: fits.FitsHDU):
+        return [c.name for c in hdu.data.columns if not ("Q" in c.format or "P" in c.format)]
+
+    content = []
     with fits.open(fits_path) as hdul:
-        content = tuple(
-            {
+        for hdu in hdul:
+            content.append({
                 "name": hdu.name,
                 "type": hdu.__class__.__name__,
-                "header": dict(hdu.header) if hdu.header else None,
-                "is_table": is_table,
-                "data": hdu.data if is_table else None,
-                "columns": columns(hdu.data) if is_table else None,
-            }
-            for i, (is_table, hdu) in enumerate(zip(map(is_table, hdul), hdul))
-        )
-    return content
+                "header": dict(hdu.header) if hdu else None,
+                "is_table": (ist := is_table(hdu)),
+                "data": hdu.data if ist else None,
+                "columns": single_columns(hdu) if ist else None,
+                "columns_varlen": variable_len_columns(hdu) if ist else None,
+                "columns_arrays": array_columns(hdu) if ist else None,
+            })
+    return tuple(content)
 
 
 FITS_SIGNATURE = b"SIMPLE  =                    T"

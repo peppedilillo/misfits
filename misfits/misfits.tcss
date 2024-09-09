@@ -60,7 +60,7 @@ InputFilter {
   }
   &.error {
     border: round $error;
-  }
+  
 }
 
 InputFilter Input {

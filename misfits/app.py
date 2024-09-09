@@ -93,15 +93,20 @@ class TableDialog(Static):
         ("ctrl+e", "last_page()", "Last"),
     ]
 
-    def __init__(self, arr: fits.FITS_rec, cols, page_len: int = 50):
+    def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50, hide_filter: bool = False):
         """
         :param arr: The dataframe to show
+        :param cols: Columns to show in table
         :param page_len: How many dataframe rows are shown for each page.
+        :param hide_filter: Wether if to show the table filter or none. We do not show
+        filter for tables which would require huge loading time, such as tables with
+        variable length array columns.
         """
         super().__init__()
         self._arr = arr
         self.arr = arr
         self.cols = cols
+        self.disable_filter = hide_filter
         self.mask = None
         self.page_len = page_len
         self.page_no = 1  # starts from one
@@ -109,7 +114,8 @@ class TableDialog(Static):
 
     def compose(self) -> ComposeResult:
         yield FitsTable()
-        yield InputFilter()
+        if not self.disable_filter and len(self.arr) > 1:
+            yield InputFilter()
 
     def on_mount(self):
         self.border_title = "Table"
@@ -134,7 +140,7 @@ class TableDialog(Static):
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
-    async def filter_table(self, query: str, delay=0.25):
+    async def filter_table(self, query: str):
         """
         Filters a table according to a query and shows it's fist page.
 
@@ -144,7 +150,6 @@ class TableDialog(Static):
         :return:
         """
         # noinspection PyBroadException
-        await sleep(delay)
         try:
             filtered_arr = await to_thread(filter_array, query, self._arr)
         except Exception as e:
@@ -174,7 +179,7 @@ class TableDialog(Static):
             f"page {self.page_no} / {self.page_tot} "
         )
 
-    async def action_next_page(self):
+    def action_next_page(self):
         """Scrolls to next page."""
         if self.page_no < self.page_tot:
             self.page_no += 1
@@ -257,7 +262,11 @@ class HDUPane(TabPane):
         with Horizontal():
             yield HeaderDialog(self.content["header"])
             if self.content["is_table"]:
-                yield TableDialog(self.content["data"], self.content["columns"])
+                yield TableDialog(
+                    self.content["data"],
+                    self.content["columns"],
+                    hide_filter=True if self.content["columns_arrays"] else False,
+                )
             else:
                 yield EmptyDialog()
 
