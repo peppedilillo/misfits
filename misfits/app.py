@@ -5,7 +5,7 @@ Author: Giuseppe Dilillo
 Date:   August 2024
 """
 
-from asyncio import sleep
+from asyncio import sleep, to_thread
 from contextlib import asynccontextmanager
 from contextlib import contextmanager
 from datetime import datetime
@@ -133,8 +133,8 @@ class TableDialog(Static):
         self.filter_table(event.value)
 
     # runs possibly slow filter operation with a worker to avoid UI lags
-    @work(exclusive=True, thread=True, group="filter_table")
-    async def filter_table(self, query: str):
+    @work(exclusive=True, group="filter_table")
+    async def filter_table(self, query: str, delay=0.25):
         """
         Filters a table according to a query and shows it's fist page.
 
@@ -144,21 +144,21 @@ class TableDialog(Static):
         :return:
         """
         # noinspection PyBroadException
-        worker = get_current_worker()
+        await sleep(delay)
         try:
-            filtered_arr = filter_array(query, self._arr)
+            filtered_arr = await to_thread(filter_array, query, self._arr)
         except Exception as e:
-            if not worker.is_cancelled:
-                infilter = self.query_one(InputFilter)
-                self.app.call_from_thread(infilter.add_class, "error")
+            self.query_one(InputFilter).add_class("error")
             return
-        if not worker.is_cancelled:
-            self.arr = filtered_arr
-            self.app.call_from_thread(self.update_page_display)
-            self.page_no = 1
-            self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
-            infilter = self.query_one(InputFilter)
-            self.app.call_from_thread(infilter.remove_class, "error")
+        self.arr = filtered_arr
+        self.page_no = 1
+        self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
+        self.update_page_display()
+        self.query_one(InputFilter).remove_class("error")
+        self.app.log_push(
+            f"Filtered table by query {repr(query)}, "
+            f"{len(filtered_arr)} entries matching the query."
+        )
 
     def page_slice(self):
         """Returns a slice which can be used to index the present page."""
