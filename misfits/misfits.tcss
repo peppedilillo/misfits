@@ -52,23 +52,6 @@ TabPane {
   border: none;
 }
 
-InputFilter {
-  border: round $secondary;
-  height: 3;
-  &:focus-within {
-    border: round $accent;
-  }
-  &.error {
-    border: round $error;
-  
-}
-
-InputFilter Input {
-  height: 1;
-  width: 1fr;
-  border: none;
-}
-
 HeaderEntry {
   align: center middle;
 }
@@ -127,6 +110,8 @@ FileExplorerScreen Label {
 }
 
 FileInput {
+  /* will align prompt of FileInput to prompt of filter */
+  padding: 0 0 0 1;
   background: $background;
   border: round $primary;
   & :focus-within {
@@ -137,21 +122,24 @@ FileInput {
   }
 }
 
-FileInput Container {
-  width: 1fr;
-}
-
-FileInput Button {
-  border: none;
-  height: 1;
-  max-width: 10;
-}
-
-FileInput #fi_send {
-  background: $primary;
-}
-
 FileInput Input {
+  height: 1;
+  width: 1fr;
+  border: none;
+}
+
+InputFilter {
+  border: round $secondary;
+  height: 3;
+  &:focus-within {
+    border: round $accent;
+  }
+  &.error {
+    border: round $error;
+  }
+}
+
+InputFilter Input {
   height: 1;
   width: 1fr;
   border: none;

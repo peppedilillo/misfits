@@ -70,6 +70,22 @@ class FitsTable(DataTable):
         self.cursor_type = "cell"
 
 
+class LabelInput(Input):
+    """A prompt widget with an input and a label"""
+
+    def __init__(self, label_text: str):
+        self.label_text = label_text
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            yield Label(f"[dim italic]{self.label_text}: ")
+            yield Input()
+
+    def set_input_value(self, value: str):
+        self.query_one(Input).value = value
+
+
 class InputFilter(Static):
     """A prompt widget for filtering a table"""
 
@@ -276,39 +292,23 @@ class HDUPane(TabPane):
         del self.content
 
 
-class FileInput(Input):
-    """A prompt widget to input via file paths."""
-
+class FileInput(LabelInput):
     class Sent(Message):
-        """A message to the main app so that the input can be loaded."""
+        """A custom Sent message for FileInput."""
 
         def __init__(self, value: str) -> None:
             self.value = value
             super().__init__()
 
-    def compose(self) -> ComposeResult:
-        with Horizontal():
-            yield Label("[dim italic]path: ")
-            yield Input()
-            yield Button("Send", id="fi_send")
-            yield Button("Clear", id="fi_clear")
+    def __init__(self):
+        super().__init__(label_text="path")
 
     def on_mount(self):
         self.border_title = "File"
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "fi_clear":
-            self.set_input_value("")
-            self.remove_class("error")
-        elif event.button.id == "fi_send":
-            self.post_message(self.Sent(self.query_one(Input).value))
-
     def on_key(self, event: events.Key) -> None:
         if event.key == "enter":
             self.post_message(self.Sent(self.query_one(Input).value))
-
-    def set_input_value(self, value: str):
-        self.query_one(Input).value = value
 
 
 class LogLevel(Enum):
