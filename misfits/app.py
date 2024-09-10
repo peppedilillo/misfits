@@ -25,7 +25,6 @@ from textual.app import DEFAULT_COLORS
 from textual.containers import Horizontal
 from textual.design import ColorSystem
 from textual.message import Message
-from textual.widgets import Button
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
@@ -35,7 +34,6 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
-from textual.worker import get_current_worker
 
 from misfits.data import _validate_fits
 from misfits.data import filter_array
@@ -59,15 +57,107 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 
 class FitsTable(DataTable):
     """Display numpy structured array as a table."""
+    BINDINGS = [
+        ("shift+left", "back_page()", "Back"),
+        ("shift+right", "next_page()", "Next"),
+        ("ctrl+a", "first_page()", "First"),
+        ("ctrl+e", "last_page()", "Last"),
+    ]
+
+    def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50):
+        """
+        :param arr: The dataframe to show
+        :param cols: Columns to show in table
+        :param page_len: How many dataframe rows are shown for each page.
+        filter for tables which would require huge loading time, such as tables with
+        variable length array columns.
+        """
+        super().__init__()
+        self._arr = arr
+        self.arr = arr
+        self.cols = cols
+        self.page_len = page_len
+        self.page_no = 1  # starts from one
+        self.page_tot = max(ceil(len(arr) / page_len), 1)
+
+    def on_mount(self):
+        self.border_title = "Table"
+        self.cursor_type = "cell"
+        self.update_page_display()
+
+    def on_unmount(self):
+        del self.arr
+        del self._arr
+        del self.cols
+        del self.page_len
+        del self.page_no
+        del self.page_tot
+
     def update_arr(self, arr: fits.fitsrec, cols):
         """Update with a new table."""
         self.clear(columns=True)
         self.add_columns(*cols)
         self.add_rows([tuple(row[c] for c in cols) for row in arr])
 
-    def on_mount(self):
-        self.border_title = "Table"
-        self.cursor_type = "cell"
+    # runs possibly slow filter operation with a worker to avoid UI lags
+    @work(exclusive=True, group="filter_table")
+    async def filter_table(self, query: str):
+        """
+        Filters a table according to a query and shows its fist page.
+
+        :param query: the filter query
+        :return:
+        """
+        # noinspection PyBroadException
+        try:
+            filtered_arr = await to_thread(filter_array, query, self._arr)
+        except Exception:
+            self.add_class("error")
+            return
+        self.arr = filtered_arr
+        self.page_no = 1
+        self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
+        self.update_page_display()
+        self.remove_class("error")
+        self.app.log_push(
+            f"Filtered table by query {repr(query)}, "
+            f"{len(filtered_arr)} entries matching the query."
+        )
+
+    def page_slice(self):
+        """Returns a slice which can be used to index the present page."""
+        page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
+        return slice(*page)
+
+    def update_page_display(self):
+        """Displays the present table page."""
+        arr = self.arr[self.page_slice()]
+        self.update_arr(arr, self.cols)
+        self.border_subtitle = (f"page {self.page_no} / {self.page_tot} ")
+
+    def action_next_page(self):
+        """Scrolls to next page."""
+        if self.page_no < self.page_tot:
+            self.page_no += 1
+            self.update_page_display()
+
+    def action_back_page(self):
+        """Scrolls to previous page."""
+        if self.page_no > 1:
+            self.page_no -= 1
+            self.update_page_display()
+
+    def action_last_page(self):
+        """Scrolls to last page"""
+        self.page_no = self.page_tot
+        self.update_page_display()
+
+    def action_first_page(self):
+        """Scrolls to first page"""
+        self.page_no = 1
+        self.update_page_display()
+
+    # TODO: add methods and binding for scrolling to `n` page.
 
 
 class LabelInput(Input):
@@ -102,13 +192,6 @@ class TableDialog(Static):
     """Hosts widgets for navigating a data table and filter it.
     Table entries are shown in pages for responsiveness."""
 
-    BINDINGS = [
-        ("shift+left", "back_page()", "Back"),
-        ("shift+right", "next_page()", "Next"),
-        ("ctrl+a", "first_page()", "First"),
-        ("ctrl+e", "last_page()", "Last"),
-    ]
-
     def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50, hide_filter: bool = False):
         """
         :param arr: The dataframe to show
@@ -119,23 +202,18 @@ class TableDialog(Static):
         variable length array columns.
         """
         super().__init__()
-        self._arr = arr
+        self.page_len = page_len
         self.arr = arr
         self.cols = cols
-        self.disable_filter = hide_filter
-        self.mask = None
-        self.page_len = page_len
-        self.page_no = 1  # starts from one
-        self.page_tot = max(ceil(len(arr) / page_len), 1)
+        self.hide_filter = hide_filter
 
     def compose(self) -> ComposeResult:
-        yield FitsTable()
-        if not self.disable_filter and len(self.arr) > 1:
+        yield FitsTable(self.arr, self.cols, self.page_len)
+        if not self.hide_filter and len(self.arr) > 1:
             yield InputFilter()
 
     def on_mount(self):
         self.border_title = "Table"
-        self.update_page_display()
 
     # this is an unfortunate solution to an unfortunate problem.
     # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
@@ -145,79 +223,14 @@ class TableDialog(Static):
     # passing references to functions around, with no luck.
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
-        del self._arr
         del self.arr
-        del self.mask
+        del self.cols
+        del self.page_len
 
     # async is needed since `filter_table` calls a worker
     async def on_input_changed(self, event: Input.Submitted):
         # noinspection PyAsyncCall
-        self.filter_table(event.value)
-
-    # runs possibly slow filter operation with a worker to avoid UI lags
-    @work(exclusive=True, group="filter_table")
-    async def filter_table(self, query: str):
-        """
-        Filters a table according to a query and shows it's fist page.
-
-        :param query: the filter query
-        :param delay: sets sleep time at start to prevent function calls while
-        writing query.
-        :return:
-        """
-        # noinspection PyBroadException
-        try:
-            filtered_arr = await to_thread(filter_array, query, self._arr)
-        except Exception as e:
-            self.query_one(InputFilter).add_class("error")
-            return
-        self.arr = filtered_arr
-        self.page_no = 1
-        self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
-        self.update_page_display()
-        self.query_one(InputFilter).remove_class("error")
-        self.app.log_push(
-            f"Filtered table by query {repr(query)}, "
-            f"{len(filtered_arr)} entries matching the query."
-        )
-
-    def page_slice(self):
-        """Returns a slice which can be used to index the present page."""
-        page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
-        return slice(*page)
-
-    def update_page_display(self):
-        """Displays the present table page."""
-        table = self.query_one(FitsTable)
-        arr = self.arr[self.page_slice()]
-        table.update_arr(arr, self.cols)
-        self.query_one(FitsTable).border_subtitle = (
-            f"page {self.page_no} / {self.page_tot} "
-        )
-
-    def action_next_page(self):
-        """Scrolls to next page."""
-        if self.page_no < self.page_tot:
-            self.page_no += 1
-            self.update_page_display()
-
-    def action_back_page(self):
-        """Scrolls to previous page."""
-        if self.page_no > 1:
-            self.page_no -= 1
-            self.update_page_display()
-
-    def action_last_page(self):
-        """Scrolls to last page"""
-        self.page_no = self.page_tot
-        self.update_page_display()
-
-    def action_first_page(self):
-        """Scrolls to first page"""
-        self.page_no = 1
-        self.update_page_display()
-
-    # TODO: add methods and binding for scrolling to `n` page.
+        self.query_one(FitsTable).filter_table(event.value)
 
 
 class EmptyDialog(Static):
