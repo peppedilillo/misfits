@@ -49,21 +49,25 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
         return [c.name for c in hdu.data.columns if len(c.array.shape) > 1]
 
     def variable_len_columns(hdu: fits.FitsHDU):
-        return [c.name for c in hdu.data.columns if not ("Q" in c.format or "P" in c.format)]
+        return [
+            c.name for c in hdu.data.columns if not ("Q" in c.format or "P" in c.format)
+        ]
 
     content = []
     with fits.open(fits_path) as hdul:
         for hdu in hdul:
-            content.append({
-                "name": hdu.name,
-                "type": hdu.__class__.__name__,
-                "header": dict(hdu.header) if hdu else None,
-                "is_table": (ist := is_table(hdu)),
-                "data": hdu.data if ist else None,
-                "columns": single_columns(hdu) if ist else None,
-                "columns_varlen": variable_len_columns(hdu) if ist else None,
-                "columns_arrays": array_columns(hdu) if ist else None,
-            })
+            content.append(
+                {
+                    "name": hdu.name,
+                    "type": hdu.__class__.__name__,
+                    "header": dict(hdu.header) if hdu else None,
+                    "is_table": (ist := is_table(hdu)),
+                    "data": hdu.data if ist else None,
+                    "columns": single_columns(hdu) if ist else None,
+                    "columns_varlen": variable_len_columns(hdu) if ist else None,
+                    "columns_arrays": array_columns(hdu) if ist else None,
+                }
+            )
     return tuple(content)
 
 

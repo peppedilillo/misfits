@@ -7,11 +7,12 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.screen import ModalScreen
-from textual.widgets import DirectoryTree, TextArea
+from textual.widgets import DirectoryTree
 from textual.widgets import Footer
 from textual.widgets import Header
 from textual.widgets import RichLog
 from textual.widgets import Static
+from textual.widgets import TextArea
 
 from misfits.data import _validate_fits
 from misfits.effects import EffectLabel

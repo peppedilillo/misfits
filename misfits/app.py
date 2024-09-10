@@ -5,7 +5,8 @@ Author: Giuseppe Dilillo
 Date:   August 2024
 """
 
-from asyncio import sleep, to_thread
+from asyncio import sleep
+from asyncio import to_thread
 from contextlib import asynccontextmanager
 from contextlib import contextmanager
 from datetime import datetime
@@ -38,11 +39,11 @@ from textual.widgets import Tree
 from misfits.data import _validate_fits
 from misfits.data import filter_array
 from misfits.data import get_fits_content
-from misfits.screens import EscapableFileExplorerScreen, HeaderEntry
+from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
+from misfits.screens import HeaderEntry
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
-
 
 DEFAULT_COLORS["dark"] = ColorSystem(
     primary="#03A062",  # matrix green
@@ -57,6 +58,7 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 
 class FitsTable(DataTable):
     """Display numpy structured array as a table."""
+
     BINDINGS = [
         ("shift+left", "back_page()", "Back"),
         ("shift+right", "next_page()", "Next"),
@@ -133,7 +135,7 @@ class FitsTable(DataTable):
         """Displays the present table page."""
         arr = self.arr[self.page_slice()]
         self.update_arr(arr, self.cols)
-        self.border_subtitle = (f"page {self.page_no} / {self.page_tot} ")
+        self.border_subtitle = f"page {self.page_no} / {self.page_tot} "
 
     def action_next_page(self):
         """Scrolls to next page."""
@@ -192,7 +194,13 @@ class TableDialog(Static):
     """Hosts widgets for navigating a data table and filter it.
     Table entries are shown in pages for responsiveness."""
 
-    def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50, hide_filter: bool = False):
+    def __init__(
+        self,
+        arr: fits.FITS_rec,
+        cols: list[str],
+        page_len: int = 50,
+        hide_filter: bool = False,
+    ):
         """
         :param arr: The dataframe to show
         :param cols: Columns to show in table
@@ -343,7 +351,11 @@ class Misfits(App):
 
     TITLE = "Misfits"
     CSS_PATH = "misfits.tcss"
-    SCREENS = {"log": LogScreen, "file_explorer": FileExplorerScreen, "info": InfoScreen}
+    SCREENS = {
+        "log": LogScreen,
+        "file_explorer": FileExplorerScreen,
+        "info": InfoScreen,
+    }
     BINDINGS = [
         ("ctrl+l", "push_screen('log')", "Log"),
         ("ctrl+j", "push_screen('info')", "Info"),
@@ -392,7 +404,9 @@ class Misfits(App):
     @work
     async def on_mount(self):
         if not self.filepath:
-            self.filepath = await self.push_screen_wait(FileExplorerScreen(self.rootdir))
+            self.filepath = await self.push_screen_wait(
+                FileExplorerScreen(self.rootdir)
+            )
         self.query_one(FileInput).set_input_value(str(self.filepath))
         # noinspection PyAsyncCall
         self.populate_tabs()
@@ -411,7 +425,9 @@ class Misfits(App):
     # `push_screen_wait` requires a worker
     @work
     async def action_open_explorer(self):
-        self.filepath = await self.push_screen_wait(EscapableFileExplorerScreen(self.rootdir))
+        self.filepath = await self.push_screen_wait(
+            EscapableFileExplorerScreen(self.rootdir)
+        )
         # noinspection PyAsyncCall
         self.populate_tabs()
         self.query_one(FileInput).set_input_value(str(self.filepath))
