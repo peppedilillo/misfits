@@ -4,6 +4,7 @@ A terminal FITS viewer with interactive tables.
 Author: Giuseppe Dilillo
 Date:   August 2024
 """
+from textual import on
 
 from asyncio import sleep
 from asyncio import to_thread
@@ -18,7 +19,6 @@ from typing import Callable
 
 from astropy.io import fits
 import click
-from textual import events
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
@@ -66,6 +66,13 @@ class FitsTable(DataTable):
         ("ctrl+e", "last_page()", "Last"),
     ]
 
+    class QuerySucceded(Message):
+        """Color selected message."""
+
+        def __init__(self, query_succeded: bool) -> None:
+            self.value = query_succeded
+            super().__init__()
+
     def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50):
         """
         :param arr: The dataframe to show
@@ -87,6 +94,13 @@ class FitsTable(DataTable):
         self.cursor_type = "cell"
         self.update_page_display()
 
+    # this is an unfortunate solution to an unfortunate problem.
+    # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
+    # to its tabs. since tabs are holding references to large tables this may cause
+    # potentially huge memory leaks. best solution i've managed so far is to delete
+    # references to tables on unmounting. i've tried different solutions such as
+    # passing references to functions around, with no luck.
+    # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.arr
         del self._arr
@@ -114,17 +128,18 @@ class FitsTable(DataTable):
         try:
             filtered_arr = await to_thread(filter_array, query, self._arr)
         except Exception:
-            self.add_class("error")
+            self.post_message(self.QuerySucceded(False))
             return
         self.arr = filtered_arr
         self.page_no = 1
         self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
         self.update_page_display()
-        self.remove_class("error")
         self.app.log_push(
             f"Filtered table by query {repr(query)}, "
             f"{len(filtered_arr)} entries matching the query."
         )
+        self.post_message(self.QuerySucceded(True))
+        return
 
     def page_slice(self):
         """Returns a slice which can be used to index the present page."""
@@ -162,7 +177,7 @@ class FitsTable(DataTable):
     # TODO: add methods and binding for scrolling to `n` page.
 
 
-class InputFilter(Static):
+class FilterInput(Static):
     """A prompt widget for filtering a table"""
 
     def compose(self) -> ComposeResult:
@@ -202,17 +217,12 @@ class TableDialog(Static):
     def compose(self) -> ComposeResult:
         yield FitsTable(self.arr, self.cols, self.page_len)
         if not self.hide_filter and len(self.arr) > 1:
-            yield InputFilter()
+            yield FilterInput()
 
     def on_mount(self):
         self.border_title = "Table"
 
-    # this is an unfortunate solution to an unfortunate problem.
-    # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
-    # to its tabs. since tabs are holding references to large tables this may cause
-    # potentially huge memory leaks. best solution i've managed so far is to delete
-    # references to tables on unmounting. i've tried different solutions such as
-    # passing references to functions around, with no luck.
+    # see note on `TableDialog.on_unmount`.
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.arr
@@ -220,9 +230,19 @@ class TableDialog(Static):
         del self.page_len
 
     # async is needed since `filter_table` calls a worker
-    async def on_input_changed(self, event: Input.Submitted):
+    @on(Input.Submitted)
+    async def maybe_filter_table(self, event: Input.Submitted):
         # noinspection PyAsyncCall
         self.query_one(FitsTable).filter_table(event.value)
+        # we prevent bubbling up of the message, which would affect file input prompt
+        event.stop()
+
+    @on(FitsTable.QuerySucceded)
+    def color_filter_border(self, message: FitsTable.QuerySucceded):
+        if message.value:
+            self.query_one(FilterInput).remove_class("error")
+        else:
+            self.query_one(FilterInput).add_class("error")
 
 
 class EmptyDialog(Static):
@@ -255,7 +275,8 @@ class HeaderDialog(Tree):
             leaf = node.add_leaf(label, data=str(value))
             self.leafs.append(leaf)
 
-    def on_tree_node_selected(self, event: Tree.NodeSelected):
+    @on(Tree.NodeSelected)
+    def display_content_popup(self, event: Tree.NodeSelected):
         """Opens a pop-up clicking on a header entry."""
         if event.node in self.leafs:
             self.app.push_screen(HeaderEntry(event.node.data))
@@ -389,7 +410,8 @@ class Misfits(App):
         # noinspection PyAsyncCall
         self.populate_tabs()
 
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
+    @on(Input.Submitted)
+    async def load_file_content(self, event: Input.Submitted) -> None:
         """Accepts and checks message from file input prompt."""
         input_path = Path(event.value)
         if not _validate_fits(input_path):

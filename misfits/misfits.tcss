@@ -129,7 +129,7 @@ FileInput Input {
   border: none;
 }
 
-InputFilter {
+FilterInput {
   border: round $secondary;
   height: 3;
   &:focus-within {
@@ -140,7 +140,7 @@ InputFilter {
   }
 }
 
-InputFilter Input {
+FilterInput Input {
   height: 1;
   width: 1fr;
   border: none;
