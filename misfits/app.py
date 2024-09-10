@@ -162,22 +162,6 @@ class FitsTable(DataTable):
     # TODO: add methods and binding for scrolling to `n` page.
 
 
-class LabelInput(Input):
-    """A prompt widget with an input and a label"""
-
-    def __init__(self, label_text: str):
-        self.label_text = label_text
-        super().__init__()
-
-    def compose(self) -> ComposeResult:
-        with Horizontal():
-            yield Label(f"[dim italic]{self.label_text}: ")
-            yield Input()
-
-    def set_input_value(self, value: str):
-        self.query_one(Input).value = value
-
-
 class InputFilter(Static):
     """A prompt widget for filtering a table"""
 
@@ -313,23 +297,17 @@ class HDUPane(TabPane):
         del self.content
 
 
-class FileInput(LabelInput):
-    class Sent(Message):
-        """A custom Sent message for FileInput."""
-
-        def __init__(self, value: str) -> None:
-            self.value = value
-            super().__init__()
-
-    def __init__(self):
-        super().__init__(label_text="path")
+class FileInput(Static):
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            yield Label(f"[dim italic] path: ")
+            yield Input()
 
     def on_mount(self):
         self.border_title = "File"
 
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "enter":
-            self.post_message(self.Sent(self.query_one(Input).value))
+    def set_input_value(self, value: str):
+        self.query_one(Input).value = value
 
 
 class LogLevel(Enum):
@@ -411,9 +389,9 @@ class Misfits(App):
         # noinspection PyAsyncCall
         self.populate_tabs()
 
-    async def on_file_input_sent(self, message: FileInput.Sent) -> None:
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Accepts and checks message from file input prompt."""
-        input_path = Path(message.value)
+        input_path = Path(event.value)
         if not _validate_fits(input_path):
             self.query_one(FileInput).add_class("error")
             return

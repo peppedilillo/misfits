@@ -111,6 +111,7 @@ FileExplorerScreen Label {
 
 FileInput {
   /* will align prompt of FileInput to prompt of filter */
+  height: 3;
   padding: 0 0 0 1;
   background: $background;
   border: round $primary;
