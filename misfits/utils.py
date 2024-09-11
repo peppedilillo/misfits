@@ -1,5 +1,6 @@
 from asyncio import sleep
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from time import perf_counter
 from typing import Callable
 
