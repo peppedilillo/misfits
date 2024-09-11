@@ -54,7 +54,14 @@ class InfoScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         yield Header()
         with Container():
-            yield EffectLabel(LOGO)
+            yield EffectLabel(
+                LOGO,
+                effect="BinaryPath",
+                config={
+                    "active_binary_groups": 0.1,
+                    "movement_speed": 1.0,
+                }
+            )
             yield Static(self.get_text())
         yield Footer()
 

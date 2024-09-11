@@ -57,6 +57,7 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 )
 
 
+
 class FitsTable(DataTable):
     """Displays fits records as a table organized in pages."""
 
@@ -155,13 +156,15 @@ class FitsTable(DataTable):
         if self.promoted:
             table_slice = self.table.iloc[self.mask[self.page_slice()]]
             self.display_table(
-                rows=list(table_slice.itertuples(index=False, name=None)),
+                rows=table_slice.itertuples(index=False),
                 cols=self.cols,
             )
         else:
             table_slice = self.table[self.page_slice()]
             self.display_table(
-                rows=([tuple(row[c] for c in self.cols) for row in table_slice]),
+                # this looks eccentric but is faster than list comprehension and
+                # has the benefit of having homogenous formatting with promoted table
+                rows=Table(table_slice)[self.cols].to_pandas().itertuples(index=False),
                 cols=self.cols,
             )
         self.border_subtitle = f"page {self.page_no} / {self.page_tot} "
@@ -230,7 +233,7 @@ class TableDialog(Static):
 
     def compose(self) -> ComposeResult:
         yield FitsTable(self.arr, self.cols, self.page_len)
-        if not self.hide_filter and len(self.arr) > 1:
+        if not self.hide_filter:
             yield FilterInput()
 
     def on_mount(self):

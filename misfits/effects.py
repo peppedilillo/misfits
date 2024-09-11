@@ -64,7 +64,7 @@ class EffectLabel(Static):
     def __init__(
         self,
         text: str,
-        effect: EffectType = "BinaryPath",
+        effect: EffectType,
         config: dict[str, Any] = {},
         **kwargs,
     ) -> None:
