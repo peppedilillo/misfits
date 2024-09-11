@@ -138,11 +138,13 @@ class FitsTable(DataTable):
         try:
             fdf = await to_thread(self.table.query, query) if query else self.table
         except Exception:
+            self.post_message(self.QuerySucceded(False))
             return
         self.mask = fdf.index
         self.page_no = 1
         self.page_tot = max(ceil(len(self.mask) / self.page_len), 1)
         self.update_page_display()
+        self.post_message(self.QuerySucceded(True))
         log.push(f"Filtered table by query {repr(query)}, {len(fdf)} matching entries.")
 
     def page_slice(self):
@@ -310,10 +312,17 @@ class HeaderDialog(Tree):
 
 
 class HDUPane(TabPane):
-    """A container for header and table widgets"""
+    """A container for header and table widgets."""
+
+    class FocusedUnpromotableTable(Message):
+        """Color selected message."""
+        def __init__(self, table_name) -> None:
+            self.table_name = table_name
+            super().__init__()
 
     def __init__(self, content: dict):
         self.content = content
+        self.focused_already = False
         super().__init__(content["name"] if content["name"].strip() else "HDU")
 
     def compose(self) -> ComposeResult:
@@ -332,6 +341,13 @@ class HDUPane(TabPane):
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.content
+
+    @on(TabPane.Focused)
+    def notify(self, _: TabPane.Focused) -> None:
+        """This will alert main app to notify we are on a table with limitations."""
+        if not self.focused_already and self.content["columns_arrays"]:
+            self.post_message(self.FocusedUnpromotableTable(self.content["name"]))
+        self.focused_already = True
 
 
 class FileInput(Static):
@@ -423,8 +439,9 @@ class Misfits(App):
         # noinspection PyAsyncCall
         self.populate_tabs()
 
+    # `populate_tabs` requires a worker
     @on(Input.Submitted)
-    async def load_file_content(self, event: Input.Submitted) -> None:
+    async def load_file_content(self, event: Input.Submitted):
         """Accepts and checks message from file input prompt."""
         input_path = Path(event.value)
         if not _validate_fits(input_path):
@@ -434,6 +451,15 @@ class Misfits(App):
         self.filepath = input_path
         # noinspection PyAsyncCall
         self.populate_tabs()
+
+    @on(HDUPane.FocusedUnpromotableTable)
+    def notify_limitatiion(self, message: HDUPane.FocusedUnpromotableTable):
+        self.notify(
+            f"Table {message.table_name} contains array columns. "
+            f"Array columns cannot be displayed. Filter has been disabled.",
+            severity="warning",
+            timeout=5,
+        )
 
     # `push_screen_wait` requires a worker
     @work
