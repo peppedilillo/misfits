@@ -473,7 +473,9 @@ class Misfits(App):
                 log.push(f"Opening '{self.filepath}'")
                 contents = await get_fits_content(self.filepath)
                 for i, content in enumerate(contents):
-                    await tabs.add_pane(HDUPane(content))
+                    await tabs.add_pane(HDUPane(content, id=(tab_id := f"tab-{i}")))
+                    if content["is_table"]:
+                        self.query_one(TabbedContent).active = tab_id
                     log.push_fitcontents(content)
             log.push(f"Reading FITS file took {elapsed():.3f} s")
         self.query_one(MainHeader).maybe_run_effect()
