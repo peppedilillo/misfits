@@ -9,8 +9,6 @@ from asyncio import sleep
 from asyncio import to_thread
 from contextlib import asynccontextmanager
 from contextlib import contextmanager
-from datetime import datetime
-from enum import Enum
 from math import ceil
 from pathlib import Path
 from time import perf_counter
@@ -40,6 +38,7 @@ from textual.widget import Widget
 from misfits.data import _validate_fits
 from misfits.data import filter_array
 from misfits.data import get_fits_content
+from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
 from misfits.screens import HeaderEntry
@@ -135,7 +134,7 @@ class FitsTable(DataTable):
         self.page_no = 1
         self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
         self.update_page_display()
-        self.app.log_push(
+        log.push(
             f"Filtered table by query {repr(query)}, "
             f"{len(filtered_arr)} entries matching the query."
         )
@@ -332,12 +331,6 @@ class FileInput(Static):
         self.query_one(Input).value = value
 
 
-class LogLevel(Enum):
-    INFO = 0
-    WARNING = 1
-    ERROR = 2
-
-
 @contextmanager
 def catchtime() -> Callable[[], float]:
     """A context manager for measuring computing times."""
@@ -454,39 +447,13 @@ class Misfits(App):
             with catchtime() as elapsed:
                 tabs = self.query_one(TabbedContent)
                 await tabs.clear_panes()
-                self.log_push(f"Opening '{self.filepath}'")
+                log.push(f"Opening '{self.filepath}'")
                 contents = await get_fits_content(self.filepath)
                 for i, content in enumerate(contents):
                     await tabs.add_pane(HDUPane(content))
-                    self.log_fitcontents(content)
+                    log.push_fitcontents(content)
 
-            self.log_push(f"Reading FITS file took {elapsed():.3f} s")
-
-
-    # TODO: move these methods to a log class.
-    def log_push(self, message: str, level: LogLevel | None = LogLevel.INFO):
-        now_str = "[dim cyan]" + datetime.now().strftime("(%H:%M:%S)") + "[/]"
-        match level:
-            case LogLevel.INFO:
-                prefix = f"{now_str} [dim green][INFO][/]: "
-            case LogLevel.WARNING:
-                prefix = f"{now_str} [dim yellow][WARNING][/]: "
-            case LogLevel.ERROR:
-                prefix = f"{now_str} [bold red][ERROR][/]: "
-            case _:
-                prefix = ""
-        self.logstack.append(prefix + message)
-
-    def log_pop(self) -> str | None:
-        return self.logstack.pop(0) if self.logstack else None
-
-    def log_fitcontents(self, content):
-        # fmt: off
-        self.log_push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}")
-        if content["data"] is not None:
-            ncols = len(content["data"].columns)
-            self.log_push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns")
-        # fmt: on
+            log.push(f"Reading FITS file took {elapsed():.3f} s")
 
 
 def click_validate_fits(

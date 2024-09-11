@@ -17,6 +17,7 @@ from textual.widgets import TextArea
 from misfits.data import _validate_fits
 from misfits.effects import EffectLabel
 from misfits.logo import LOGO
+from misfits.log import log
 
 
 class LogScreen(ModalScreen):
@@ -32,9 +33,8 @@ class LogScreen(ModalScreen):
 
     def on_screen_resume(self):
         """When screen is shown, pushes message on the stack to the screen."""
-        log = self.query_one(RichLog)
-        while line := self.app.log_pop():
-            log.write(line)
+        while line := log.pop():
+            self.query_one(RichLog).write(line)
 
 
 class InfoScreen(ModalScreen):
