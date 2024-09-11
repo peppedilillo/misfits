@@ -14,10 +14,10 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable
 
-import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
 import click
+import pandas as pd
 from textual import on
 from textual import work
 from textual.app import App
@@ -26,6 +26,7 @@ from textual.app import DEFAULT_COLORS
 from textual.containers import Horizontal
 from textual.design import ColorSystem
 from textual.message import Message
+from textual.widget import Widget
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Header
@@ -35,7 +36,6 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
-from textual.widget import Widget
 
 from misfits.data import _validate_fits
 from misfits.data import get_fits_content
@@ -74,7 +74,9 @@ class FitsTable(DataTable):
             self.value = query_succeded
             super().__init__()
 
-    def __init__(self, fits_records: fits.FITS_rec, cols: list[str], page_len: int = 50):
+    def __init__(
+        self, fits_records: fits.FITS_rec, cols: list[str], page_len: int = 50
+    ):
         """
         :param fits_records: The dataframe to show
         :param cols: Columns to show in table
@@ -160,7 +162,7 @@ class FitsTable(DataTable):
             table_slice = self.table[self.page_slice()]
             self.display_table(
                 rows=([tuple(row[c] for c in self.cols) for row in table_slice]),
-                cols=self.cols
+                cols=self.cols,
             )
         self.border_subtitle = f"page {self.page_no} / {self.page_tot} "
 
@@ -352,7 +354,7 @@ def catchtime() -> Callable[[], float]:
 
 
 @asynccontextmanager
-async def disable_inputs(loading: Widget, disabled: list[Widget], delay: float=0.25):
+async def disable_inputs(loading: Widget, disabled: list[Widget], delay: float = 0.25):
     """
     Disables input and shows a loading animation while tables are read into memory.
 
