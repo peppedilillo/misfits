@@ -43,11 +43,22 @@ class Header(Static):
                 yield self.right_label
 
 
-MainHeader = Header(
-    left_label=EffectLabel(
-        text="  misfits",
-        effect="BinaryPath",
-        config={"final_gradient_stops": (Color("#ffffff"),)},
-    ),
-    right_label=Label(Text.from_markup(f"[italic dim]v.{__version__} "))
-)
+class MainHeader(Header):
+    def __init__(self):
+        self.has_run_before = False
+        super().__init__(
+            left_label=EffectLabel(
+                text="  misfits",
+                effect="BinaryPath",
+                config={"final_gradient_stops": (Color("#ffffff"),)},
+                run_on_mount=False,
+            ),
+            right_label=Label(Text.from_markup(f"[italic dim]v.{__version__} "))
+        )
+
+    def maybe_run_effect(self):
+        """Will run only on the first call, at start-up"""
+        if not self.has_run_before:
+            effect = self.query_one(EffectLabel)
+            effect.run_worker(effect.run_effect(), exclusive=True)
+            self.has_run_before = True

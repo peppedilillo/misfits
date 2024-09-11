@@ -412,7 +412,6 @@ async def disable_inputs(loading: Widget, disabled: list[Widget], delay: float =
 class Misfits(App):
     """Misfits, the main app."""
 
-    TITLE = "Misfits"
     CSS_PATH = "misfits.tcss"
     SCREENS = {
         "log": LogScreen,
@@ -438,7 +437,7 @@ class Misfits(App):
         self.logstack = []
 
     def compose(self) -> ComposeResult:
-        yield MainHeader
+        yield MainHeader()
         yield TabbedContent()
         yield FileInput()
         yield Footer()
@@ -508,7 +507,7 @@ class Misfits(App):
                     await tabs.add_pane(HDUPane(content))
                     log.push_fitcontents(content)
             log.push(f"Reading FITS file took {elapsed():.3f} s")
-
+        self.query_one(MainHeader).maybe_run_effect()
 
 def click_validate_fits(
     ctx: click.Context, param: click.Parameter, filepath: Path

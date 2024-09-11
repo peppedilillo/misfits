@@ -13,6 +13,7 @@ import terminaltexteffects.effects
 from terminaltexteffects.engine.base_effect import BaseEffect
 from textual.widgets import Static
 
+
 EffectType = Literal[
     "Beams",
     "BinaryPath",
@@ -67,6 +68,7 @@ class EffectLabel(Static):
         effect: str,
         config: dict[str, Any] = {},
         fps: int = 60,
+        run_on_mount: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(text, **kwargs)
@@ -74,14 +76,16 @@ class EffectLabel(Static):
         self.text = text
         self.effect = effect
         self.config = config
+        self.run_on_mount = run_on_mount
+        self.fps = fps
         self.width: int = max(len(line) for line in text.split("\n"))
         self.height: int = text.count("\n") + 1
         self.styles.width = self.width + 2
         self.styles.height = self.height + 2
-        self.fps = fps
 
     async def on_mount(self):
-        self.run_worker(self.run_effect(), exclusive=True)
+        if self.run_on_mount:
+            self.run_worker(self.run_effect(), exclusive=True)
 
     async def run_effect(self):
         effect: BaseEffect = effects[self.effect](self.text)
