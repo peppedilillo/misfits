@@ -18,7 +18,7 @@ FitsTable {
 }
 
 HeaderDialog {
-  width: 25; /* change HeaderDialog's ellipsis accordingly */
+  width: 27; /* change HeaderDialog's ellipsis accordingly */
   border: round $secondary;
   background: $background;
   & :focus-within {

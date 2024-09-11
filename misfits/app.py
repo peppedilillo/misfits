@@ -275,6 +275,9 @@ class EmptyDialog(Static):
 
 class HeaderDialog(Tree):
     """Displays a FITS header as a tree."""
+    BINDINGS = [
+        ("ctrl+s", "colexp_all", "Collapse/Expand all"),
+    ]
 
     def __init__(self, header: dict, ellipsis: int = 14):
         """
@@ -293,12 +296,6 @@ class HeaderDialog(Tree):
             leaf = node.add_leaf(label, data=str(value))
             self.leafs.append(leaf)
 
-    @on(Tree.NodeSelected)
-    def display_content_popup(self, event: Tree.NodeSelected):
-        """Opens a pop-up clicking on a header entry."""
-        if event.node in self.leafs:
-            self.app.push_screen(HeaderEntry(event.node.data))
-
     def on_mount(self):
         self.border_title = "Header"
         self.guide_depth = 3
@@ -309,6 +306,22 @@ class HeaderDialog(Tree):
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.leafs
+
+    @on(Tree.NodeSelected)
+    def display_content_popup(self, event: Tree.NodeSelected):
+        """Opens a pop-up clicking on a header entry."""
+        if event.node in self.leafs:
+            self.app.push_screen(HeaderEntry(event.node.data))
+
+    def action_colexp_all(self):
+        """Collaps or expand all header nodes together."""
+        if all(node.is_expanded for node in self.root.children):
+            for c in self.root.children:
+                c.collapse()
+        else:  # some of the node is expanded already
+            for node in self.root.children:
+                if not node.is_expanded:
+                    node.expand()
 
 
 class HDUPane(TabPane):
