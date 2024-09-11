@@ -35,6 +35,7 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
+from textual.widget import Widget
 
 from misfits.data import _validate_fits
 from misfits.data import filter_array
@@ -62,8 +63,8 @@ class FitsTable(DataTable):
     BINDINGS = [
         ("shift+left", "back_page()", "Back"),
         ("shift+right", "next_page()", "Next"),
-        ("ctrl+a", "first_page()", "First"),
-        ("ctrl+e", "last_page()", "Last"),
+        ("shift+up", "first_page()", "First"),
+        ("shift+down", "last_page()", "Last"),
     ]
 
     class QuerySucceded(Message):
@@ -345,6 +346,29 @@ def catchtime() -> Callable[[], float]:
     t2 = perf_counter()
 
 
+@asynccontextmanager
+async def disable_inputs(loading: Widget, disabled: list[Widget], delay: float=0.25):
+    """
+    Disables input and shows a loading animation while tables are read into memory.
+
+    :param disabled:
+    :param loading:
+    :param delay: seconds delay between end of loading indicator and
+    file input prompt release.
+    :return:
+    """
+    for widget in disabled:
+        widget.disabled = True
+    loading.loading = True
+    yield
+    loading.loading = False
+    # we wait a bit before releasing the input because quick, repeated sends can
+    # cause a tab to not load properly
+    await sleep(delay)
+    for widget in disabled:
+        widget.disabled = False
+
+
 class Misfits(App):
     """Misfits, the main app."""
 
@@ -378,26 +402,6 @@ class Misfits(App):
         yield TabbedContent()
         yield FileInput()
         yield Footer()
-
-    @asynccontextmanager
-    async def disable_inputs(self, fileinput_delay=0.25):
-        """
-        Disables input and shows a loading animation while tables are read into memory.
-
-        :param fileinput_delay: seconds delay between end of loading indicator and
-        file input prompt release.
-        :return:
-        """
-        fileinput = self.query_one(FileInput)
-        fileinput.disabled = True
-        tabs = self.query_one(TabbedContent)
-        tabs.loading = True
-        yield
-        tabs.loading = False
-        # we wait a bit before releasing the input because quick, repeated sends can
-        # cause a tab to not load properly
-        await sleep(fileinput_delay)
-        fileinput.disabled = False
 
     # `push_screen_wait` requires a worker
     @work
@@ -437,13 +441,16 @@ class Misfits(App):
     # exclusive because otherwise would result in an error everytime we attempt
     # to open a new while one is still loading.
     @work(exclusive=True)
-    async def populate_tabs(self, mintime=0.25) -> None:
+    async def populate_tabs(self) -> None:
         """
         Fills the tabs with data read from the FITS' HDUs.
 
         :param mintime: smallest time in which the loading indicator is displayed.
         """
-        async with self.disable_inputs():
+        async with disable_inputs(
+            loading=self.query_one(TabbedContent),
+            disabled=[self.query_one(FileInput)],
+        ):
             with catchtime() as elapsed:
                 tabs = self.query_one(TabbedContent)
                 await tabs.clear_panes()
@@ -454,9 +461,7 @@ class Misfits(App):
                     self.log_fitcontents(content)
 
             self.log_push(f"Reading FITS file took {elapsed():.3f} s")
-            # to avoid flickering, we wait a bit when FITS reading is fast
-            if elapsed() < mintime:
-                await sleep(mintime - elapsed())
+
 
     # TODO: move these methods to a log class.
     def log_push(self, message: str, level: LogLevel | None = LogLevel.INFO):
