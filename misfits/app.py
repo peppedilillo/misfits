@@ -14,6 +14,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable
 
+import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
 import click
@@ -57,7 +58,7 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 
 
 class FitsTable(DataTable):
-    """Display numpy structured array as a table."""
+    """Displays fits records as a table organized in pages."""
 
     BINDINGS = [
         ("shift+left", "back_page()", "Back"),
@@ -73,22 +74,25 @@ class FitsTable(DataTable):
             self.value = query_succeded
             super().__init__()
 
-    def __init__(self, arr: fits.FITS_rec, cols: list[str], page_len: int = 50):
+    def __init__(self, fits_records: fits.FITS_rec, cols: list[str], page_len: int = 50):
         """
-        :param arr: The dataframe to show
+        :param fits_records: The dataframe to show
         :param cols: Columns to show in table
         :param page_len: How many dataframe rows are shown for each page.
         filter for tables which would require huge loading time, such as tables with
         variable length array columns.
         """
         super().__init__()
-        self.table = arr
+        self.table: fits.FITS_rec | pd.DataFrame = fits_records
         self.cols = cols
         self.page_len = page_len
         self.mask = None
+        # table gets promoted when first converted to dataframe.
+        # this enables the usage of pandas queries. promotion happens at first filter call.
+        # a promoted table cannot be demoted.
         self.promoted = False
         self.page_no = 1  # starts from one
-        self.page_tot = max(ceil(len(arr) / page_len), 1)
+        self.page_tot = max(ceil(len(fits_records) / page_len), 1)
 
     def on_mount(self):
         self.border_title = "Table"
