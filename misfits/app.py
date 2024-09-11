@@ -4,7 +4,6 @@ A terminal FITS viewer with interactive tables.
 Author: Giuseppe Dilillo
 Date:   August 2024
 """
-from textual import on
 
 from asyncio import sleep
 from asyncio import to_thread
@@ -19,6 +18,7 @@ from typing import Callable
 
 from astropy.io import fits
 import click
+from textual import on
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
