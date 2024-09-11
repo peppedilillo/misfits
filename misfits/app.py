@@ -15,6 +15,7 @@ from time import perf_counter
 from typing import Callable
 
 from astropy.io import fits
+from astropy.table import Table
 import click
 from textual import on
 from textual import work
@@ -36,7 +37,6 @@ from textual.widgets import Tree
 from textual.widget import Widget
 
 from misfits.data import _validate_fits
-from misfits.data import filter_array
 from misfits.data import get_fits_content
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
@@ -82,10 +82,11 @@ class FitsTable(DataTable):
         variable length array columns.
         """
         super().__init__()
-        self._arr = arr
-        self.arr = arr
+        self.table = arr
         self.cols = cols
         self.page_len = page_len
+        self.mask = None
+        self.promoted = False
         self.page_no = 1  # starts from one
         self.page_tot = max(ceil(len(arr) / page_len), 1)
 
@@ -102,44 +103,41 @@ class FitsTable(DataTable):
     # passing references to functions around, with no luck.
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
-        del self.arr
-        del self._arr
+        del self.table
+        del self.mask
         del self.cols
         del self.page_len
         del self.page_no
         del self.page_tot
 
-    def update_arr(self, arr: fits.fitsrec, cols):
+    def display_table(self, rows: list[tuple], cols):
         """Update with a new table."""
         self.clear(columns=True)
         self.add_columns(*cols)
-        self.add_rows([tuple(row[c] for c in cols) for row in arr])
+        self.add_rows(rows)
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
     async def filter_table(self, query: str):
         """
-        Filters a table according to a query and shows its fist page.
+        Filters a table according to a query and shows it's fist page.
 
         :param query: the filter query
         :return:
         """
         # noinspection PyBroadException
+        if not self.promoted:
+            self.table = Table(self.table).to_pandas()
+            self.promoted = True
         try:
-            filtered_arr = await to_thread(filter_array, query, self._arr)
+            fdf = await to_thread(self.table.query, query) if query else self.table
         except Exception:
-            self.post_message(self.QuerySucceded(False))
             return
-        self.arr = filtered_arr
+        self.mask = fdf.index
         self.page_no = 1
-        self.page_tot = max(ceil(len(self.arr) / self.page_len), 1)
+        self.page_tot = max(ceil(len(self.mask) / self.page_len), 1)
         self.update_page_display()
-        log.push(
-            f"Filtered table by query {repr(query)}, "
-            f"{len(filtered_arr)} entries matching the query."
-        )
-        self.post_message(self.QuerySucceded(True))
-        return
+        log.push(f"Filtered table by query {repr(query)}, {len(fdf)} matching entries.")
 
     def page_slice(self):
         """Returns a slice which can be used to index the present page."""
@@ -148,8 +146,18 @@ class FitsTable(DataTable):
 
     def update_page_display(self):
         """Displays the present table page."""
-        arr = self.arr[self.page_slice()]
-        self.update_arr(arr, self.cols)
+        if self.promoted:
+            table_slice = self.table.iloc[self.mask[self.page_slice()]]
+            self.display_table(
+                rows=list(table_slice.itertuples(index=False, name=None)),
+                cols=self.cols,
+            )
+        else:
+            table_slice = self.table[self.page_slice()]
+            self.display_table(
+                rows=([tuple(row[c] for c in self.cols) for row in table_slice]),
+                cols=self.cols
+            )
         self.border_subtitle = f"page {self.page_no} / {self.page_tot} "
 
     def action_next_page(self):
@@ -437,8 +445,6 @@ class Misfits(App):
     async def populate_tabs(self) -> None:
         """
         Fills the tabs with data read from the FITS' HDUs.
-
-        :param mintime: smallest time in which the loading indicator is displayed.
         """
         async with disable_inputs(
             loading=self.query_one(TabbedContent),
