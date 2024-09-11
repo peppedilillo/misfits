@@ -64,8 +64,9 @@ class EffectLabel(Static):
     def __init__(
         self,
         text: str,
-        effect: EffectType,
+        effect: str,
         config: dict[str, Any] = {},
+        fps: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(text, **kwargs)
@@ -73,11 +74,11 @@ class EffectLabel(Static):
         self.text = text
         self.effect = effect
         self.config = config
-        self.width = max(len(line) for line in text.split("\n"))
-        self.height = text.count("\n")
+        self.width: int = max(len(line) for line in text.split("\n"))
+        self.height: int = text.count("\n") + 1
         self.styles.width = self.width + 2
         self.styles.height = self.height + 2
-        self.fps = 60
+        self.fps = fps
 
     async def on_mount(self):
         self.run_worker(self.run_effect(), exclusive=True)

@@ -1,7 +1,3 @@
-Header {
-  background: $primary 20%;
-}
-
 DataTable > .datatable--header {
   text-style: bold;
   background: $accent 30%;
@@ -104,11 +100,6 @@ FileExplorerScreen DirectoryTree {
   }
 }
 
-FileExplorerScreen Label {
-  margin: 1 0 ;
-  width: auto;
-}
-
 FileInput {
   /* will align prompt of FileInput to prompt of filter */
   height: 3;
@@ -144,4 +135,17 @@ FilterInput Input {
   height: 1;
   width: 1fr;
   border: none;
+}
+
+Header {
+  height: 1;
+  background: $primary 20%;
+}
+
+Header Static {
+  width: 1fr;
+}
+
+Header Label {
+  width: auto;
 }

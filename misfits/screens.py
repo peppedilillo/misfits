@@ -9,7 +9,6 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree
 from textual.widgets import Footer
-from textual.widgets import Header
 from textual.widgets import RichLog
 from textual.widgets import Static
 from textual.widgets import TextArea
@@ -18,16 +17,16 @@ from misfits.data import _validate_fits
 from misfits.effects import EffectLabel
 from misfits.log import log
 from misfits.logo import LOGO
+from misfits.headers import Header
 
 
 class LogScreen(ModalScreen):
     """An alternative screen showing a log"""
 
-    TITLE = "Log"
     BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield Header(mid_label="Log")
         yield RichLog(highlight=True, markup=True)
         yield Footer()
 
@@ -51,7 +50,6 @@ class InfoScreen(ModalScreen):
         )
 
     def compose(self) -> ComposeResult:
-        yield Header()
         with Container():
             yield EffectLabel(
                 LOGO,
@@ -70,15 +68,13 @@ class FileExplorerScreen(ModalScreen):
     input navigating the file system. To be used at main app's start-up,
      if no input file is provided. For this reason the screen is not escapable."""
 
-    TITLE = "Open file"
-
     def __init__(self, rootdir: Path = Path.cwd()):
         super().__init__()
         self.rootdir = rootdir
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield Header(show_clock=False)
+            yield Header(mid_label="Open File")
             yield FilteredDirectoryTree(self.rootdir)
         yield Footer()
 
@@ -112,7 +108,6 @@ class HeaderEntry(ModalScreen):
     """Displays header's entries in a pop-up screen. Useful with long entries."""
 
     BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
-    TITLE = "Header entry"
 
     def __init__(self, text: str):
         super().__init__()
@@ -120,6 +115,6 @@ class HeaderEntry(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield Header()
+            yield Header(mid_label="Header entry")
             yield TextArea.code_editor(self.text, read_only=True)
         yield Footer()

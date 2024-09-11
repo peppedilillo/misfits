@@ -29,7 +29,6 @@ from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import DataTable
 from textual.widgets import Footer
-from textual.widgets import Header
 from textual.widgets import Input
 from textual.widgets import Label
 from textual.widgets import Static
@@ -39,6 +38,7 @@ from textual.widgets import Tree
 
 from misfits.data import _validate_fits
 from misfits.data import get_fits_content
+from misfits.headers import MainHeader
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
@@ -46,15 +46,17 @@ from misfits.screens import HeaderEntry
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
 
-DEFAULT_COLORS["dark"] = ColorSystem(
-    primary="#03A062",  # matrix green
-    secondary="#03A062",
-    warning="#03A062",
-    error="#ff0000",
-    success="#00ff00",
-    accent="#00ff00",
-    dark=True,
-)
+THEME = {
+    "primary": "#03A062",  # matrix green
+    "secondary": "#03A062",
+    "warning": "#03A062",
+    "error": "#ff0000",
+    "success": "#00ff00",
+    "accent": "#00ff00",
+    "dark": True,
+}
+
+DEFAULT_COLORS["dark"] = ColorSystem(**THEME)
 
 
 class FitsTable(DataTable):
@@ -436,7 +438,7 @@ class Misfits(App):
         self.logstack = []
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield MainHeader
         yield TabbedContent()
         yield FileInput()
         yield Footer()
