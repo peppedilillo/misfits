@@ -60,7 +60,7 @@ class InfoScreen(ModalScreen):
                 config={
                     "active_binary_groups": 0.1,
                     "movement_speed": 1.0,
-                }
+                },
             )
             yield Static(self.get_text())
         yield Footer()

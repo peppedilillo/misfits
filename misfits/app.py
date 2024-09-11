@@ -57,7 +57,6 @@ DEFAULT_COLORS["dark"] = ColorSystem(
 )
 
 
-
 class FitsTable(DataTable):
     """Displays fits records as a table organized in pages."""
 
