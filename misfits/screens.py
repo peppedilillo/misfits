@@ -15,9 +15,9 @@ from textual.widgets import TextArea
 
 from misfits.data import _validate_fits
 from misfits.effects import EffectLabel
+from misfits.headers import Header
 from misfits.log import log
 from misfits.logo import LOGO
-from misfits.headers import Header
 
 
 class LogScreen(ModalScreen):

@@ -1,11 +1,12 @@
 from rich.text import Text
+from terminaltexteffects.utils.graphics import Color
 from textual.app import ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Static, Label
-from terminaltexteffects.utils.graphics import Color
+from textual.widgets import Label
+from textual.widgets import Static
 
-from misfits.effects import EffectLabel
 from misfits import __version__
+from misfits.effects import EffectLabel
 
 
 def labelize(arg: Label | EffectLabel | str | None):
@@ -21,7 +22,8 @@ def labelize(arg: Label | EffectLabel | str | None):
 
 class Header(Static):
     def __init__(
-        self, *,
+        self,
+        *,
         left_label: Label | EffectLabel | str | None = None,
         mid_label: Label | EffectLabel | str | None = None,
         right_label: Label | EffectLabel | str | None = None,
@@ -53,7 +55,7 @@ class MainHeader(Header):
                 config={"final_gradient_stops": (Color("#ffffff"),)},
                 run_on_mount=False,
             ),
-            right_label=Label(Text.from_markup(f"[italic dim]v.{__version__} "))
+            right_label=Label(Text.from_markup(f"[italic dim]v.{__version__} ")),
         )
 
     def maybe_run_effect(self):

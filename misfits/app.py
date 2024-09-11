@@ -277,6 +277,7 @@ class EmptyDialog(Static):
 
 class HeaderDialog(Tree):
     """Displays a FITS header as a tree."""
+
     BINDINGS = [
         ("ctrl+s", "colexp_all", "Collapse/Expand all"),
     ]
@@ -331,6 +332,7 @@ class HDUPane(TabPane):
 
     class FocusedUnpromotableTable(Message):
         """Color selected message."""
+
         def __init__(self, table_name) -> None:
             self.table_name = table_name
             super().__init__()
@@ -338,7 +340,9 @@ class HDUPane(TabPane):
     def __init__(self, content: dict, **kwargs):
         self.content = content
         self.focused_already = False
-        super().__init__(content["name"] if content["name"].strip() else "HDU", **kwargs)
+        super().__init__(
+            content["name"] if content["name"].strip() else "HDU", **kwargs
+        )
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -508,6 +512,7 @@ class Misfits(App):
                     log.push_fitcontents(content)
             log.push(f"Reading FITS file took {elapsed():.3f} s")
         self.query_one(MainHeader).maybe_run_effect()
+
 
 def click_validate_fits(
     ctx: click.Context, param: click.Parameter, filepath: Path

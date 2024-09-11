@@ -13,7 +13,6 @@ import terminaltexteffects.effects
 from terminaltexteffects.engine.base_effect import BaseEffect
 from textual.widgets import Static
 
-
 EffectType = Literal[
     "Beams",
     "BinaryPath",
