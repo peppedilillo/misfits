@@ -335,10 +335,10 @@ class HDUPane(TabPane):
             self.table_name = table_name
             super().__init__()
 
-    def __init__(self, content: dict):
+    def __init__(self, content: dict, **kwargs):
         self.content = content
         self.focused_already = False
-        super().__init__(content["name"] if content["name"].strip() else "HDU")
+        super().__init__(content["name"] if content["name"].strip() else "HDU", **kwargs)
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -507,7 +507,6 @@ class Misfits(App):
                 for i, content in enumerate(contents):
                     await tabs.add_pane(HDUPane(content))
                     log.push_fitcontents(content)
-
             log.push(f"Reading FITS file took {elapsed():.3f} s")
 
 
