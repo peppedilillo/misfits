@@ -5,14 +5,9 @@ Author: Giuseppe Dilillo
 Date:   August 2024
 """
 
-from asyncio import sleep
 from asyncio import to_thread
-from contextlib import asynccontextmanager
-from contextlib import contextmanager
 from math import ceil
 from pathlib import Path
-from time import perf_counter
-from typing import Callable
 
 from astropy.io import fits
 from astropy.table import Table
@@ -26,7 +21,6 @@ from textual.app import DEFAULT_COLORS
 from textual.containers import Horizontal
 from textual.design import ColorSystem
 from textual.message import Message
-from textual.widget import Widget
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Input
@@ -45,6 +39,7 @@ from misfits.screens import FileExplorerScreen
 from misfits.screens import HeaderEntry
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
+from misfits.utils import catchtime, disable_inputs
 
 THEME = {
     "primary": "#03A062",  # matrix green
@@ -380,37 +375,6 @@ class FileInput(Static):
 
     def set_input_value(self, value: str):
         self.query_one(Input).value = value
-
-
-@contextmanager
-def catchtime() -> Callable[[], float]:
-    """A context manager for measuring computing times."""
-    t1 = t2 = perf_counter()
-    yield lambda: t2 - t1
-    t2 = perf_counter()
-
-
-@asynccontextmanager
-async def disable_inputs(loading: Widget, disabled: list[Widget], delay: float = 0.25):
-    """
-    Disables input and shows a loading animation while tables are read into memory.
-
-    :param disabled:
-    :param loading:
-    :param delay: seconds delay between end of loading indicator and
-    file input prompt release.
-    :return:
-    """
-    for widget in disabled:
-        widget.disabled = True
-    loading.loading = True
-    yield
-    loading.loading = False
-    # we wait a bit before releasing the input because quick, repeated sends can
-    # cause a tab to not load properly
-    await sleep(delay)
-    for widget in disabled:
-        widget.disabled = False
 
 
 class Misfits(App):
