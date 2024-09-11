@@ -474,6 +474,7 @@ class Misfits(App):
                 contents = await get_fits_content(self.filepath)
                 for i, content in enumerate(contents):
                     await tabs.add_pane(HDUPane(content, id=(tab_id := f"tab-{i}")))
+                    # switches to a pane if that pane contains a table
                     if content["is_table"]:
                         self.query_one(TabbedContent).active = tab_id
                     log.push_fitcontents(content)
