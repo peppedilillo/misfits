@@ -20,12 +20,12 @@ Make sure to be installing into a fresh python 3.11 environment!
 
 `uv tool install misfits`
 
-This is the **best method**. But you should install uv first, see their [docs](https://docs.astral.sh/uv/getting-started/installation/).
+If you like misfits, this is probably the best method. But you should install uv first, see the [docs](https://docs.astral.sh/uv/getting-started/installation/).
 The other methods will require you to activate the misfits environment to use it.
 This won't, and you will be able to call misfits from terminal with one line: `misfits .`.
 
-If you are unsure about `uv`: please don't, you should probably it. 
-It is a great package manager from the [Astral](https://astral.sh/) people.
+If you are unsure about `uv`: don't, give it a try! 
+It is a great package manager from the [people](https://astral.sh/) behind ruff and other python tools.
 
 #### Installing with anaconda
 
