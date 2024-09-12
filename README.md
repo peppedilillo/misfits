@@ -14,7 +14,7 @@ Renders best on modern terminals: windows new terminal, macOS iTerm2, your typic
 
 `pip install misfits`
 
-Make sure to be installing into a fresh python 3.12 environment!
+Make sure to be installing into a fresh python 3.11 environment!
 
 #### Installing with uv
 
