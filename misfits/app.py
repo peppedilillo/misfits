@@ -323,6 +323,10 @@ class HeaderDialog(Tree):
                     node.expand()
 
 
+def _is_promotable(content):
+    return not (content["columns_varlen"] or content["columns_vector"])
+
+
 class HDUPane(TabPane):
     """A container for header and table widgets."""
 
@@ -346,8 +350,8 @@ class HDUPane(TabPane):
             if self.content["is_table"]:
                 yield TableDialog(
                     self.content["data"],
-                    self.content["columns"],
-                    hide_filter=True if self.content["columns_arrays"] else False,
+                    self.content["columns_scalar"],
+                    hide_filter=False if _is_promotable(self.content) else True,
                 )
             else:
                 yield EmptyDialog()
@@ -360,7 +364,7 @@ class HDUPane(TabPane):
     @on(TabPane.Focused)
     def notify(self, _: TabPane.Focused) -> None:
         """This will alert main app to notify we are on a table with limitations."""
-        if not self.focused_already and self.content["columns_arrays"]:
+        if not self.focused_already and not _is_promotable(self.content):
             self.post_message(self.FocusedUnpromotableTable(self.content["name"]))
         self.focused_already = True
 

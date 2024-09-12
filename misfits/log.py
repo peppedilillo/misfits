@@ -31,9 +31,15 @@ class Logger:
     def push_fitcontents(self, content):
         # fmt: off
         self.push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}")
-        if content["data"] is not None:
+        if content["is_table"]:
             ncols = len(content["data"].columns)
             self.push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns")
+            if content["columns_scalar"]:
+                self.push(f"Columns {content['columns_scalar']} are scalar.")
+            if content["columns_vector"]:
+                self.push(f"Columns {content['columns_vector']} are vectorial.")
+            if content["columns_varlen"]:
+                self.push(f"Columns {content['columns_varlen']} are variable length arrays.")
         # fmt: on
 
 
