@@ -5,3 +5,4 @@
 **/.mypy-cache
 **/*.fits
 *venv*/
+dist/

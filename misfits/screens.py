@@ -12,9 +12,9 @@ from textual.widgets import Footer
 from textual.widgets import RichLog
 from textual.widgets import Static
 from textual.widgets import TextArea
+from textual.widgets import Label
 
 from misfits.data import _validate_fits
-from misfits.effects import EffectLabel
 from misfits.headers import Header
 from misfits.log import log
 from misfits.logo import LOGO
@@ -51,14 +51,7 @@ class InfoScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield EffectLabel(
-                LOGO,
-                effect="BinaryPath",
-                config={
-                    "active_binary_groups": 0.1,
-                    "movement_speed": 1.0,
-                },
-            )
+            yield Label(Text(LOGO, style="green bold"))
             yield Static(self.get_text())
         yield Footer()
 
