@@ -1,0 +1,6 @@
+name: hbstools
+dependencies:
+   - python>=3.12
+   - pip
+   - pip:
+     - misfits
