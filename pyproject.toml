@@ -34,5 +34,8 @@ dev = [
     "ipython>=8.27",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/peppedilillo/misfits"
+
 [project.scripts]
 misfits = 'misfits.app:main'

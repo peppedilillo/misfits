@@ -5,10 +5,10 @@
 
 Misfits is a FITs table viewer for the terminal, written in python.
 I want it to be snappy as hell and fully usable without touching the mouse.
-It currently has some limitations (e.g. won't display array or VLA columns), but will work on them in case.
-It leverages on astropy and pandas, and is built using [textual](https://textual.textualize.io/).
-It works on Linux, MacOS and Windows. Performances on Windows are worse.
-Works best on modern terminals: windows new terminal, macOS iTerm2, linux is probably fine as it is.
+It currently has some limitations (e.g. won't display array or VLA columns), but will work on them eventually.
+It leverages astropy and pandas, and is built using [textual](https://textual.textualize.io/).
+Works on Linux, MacOS and Windows. Performances on Windows are worse.
+Renders best on modern terminals: windows new terminal, macOS iTerm2, your typical linux distro is likely fine as it is.
 
 ### Installation
 
@@ -25,7 +25,7 @@ The other methods will require you to activate the misfits environment to use it
 This won't, and you will be able to call misfits from terminal with one line: `misfits .`.
 
 If you are unsure about `uv`: please don't, you should probably it. 
-It is a great package manager from the [Astral](https://astral.sh/) people
+It is a great package manager from the [Astral](https://astral.sh/) people.
 
 #### Installing with anaconda
 
