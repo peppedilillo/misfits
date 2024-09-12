@@ -1,6 +1,9 @@
 """
-credits:  Yiorgis Gozadinos
+credits:  Yiorgis Gozadinos. Thank you!
 https://github.com/ggozad
+
+Yiorgis did not publish the code with a licence, but I reserve to distribute his license
+if he will publish one in the future.
 """
 
 import asyncio
