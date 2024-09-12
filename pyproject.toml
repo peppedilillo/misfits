@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [
     { name="Giuseppe Dilillo", email="peppedilillo@gmail.com" },
 ]
-description = "A terminal-based fits viewer."
+description = "A FITS table viewer for the terminal."
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [

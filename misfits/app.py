@@ -59,10 +59,10 @@ class FitsTable(DataTable):
     """Displays fits records as a table organized in pages."""
 
     BINDINGS = [
-        ("ctrl+p", "back_page()", "Back"),
-        ("ctrl+n", "next_page()", "Next"),
-        ("ctrl+a", "first_page()", "First"),
-        ("ctrl+e", "last_page()", "Last"),
+        ("shift+left", "back_page()", "Back"),
+        ("shift+right", "next_page()", "Next"),
+        ("shift+up", "first_page()", "First"),
+        ("shift+down", "last_page()", "Last"),
     ]
 
     class QuerySucceded(Message):
