@@ -32,7 +32,7 @@ def parse_format(tform: str) -> tuple[int, str, str]:
     pattern = r'([0-9]*)([LXBIJKAEDCMPQ])(.*)'
     match = re.match(pattern, tform)
     if not match:
-        # TODO: Should handle this error
+        # TODO: Handle this error
         raise ValueError(f"Error parsing TFORM value {tform}")
     scount = match.group(1)
     type_char = match.group(2)
