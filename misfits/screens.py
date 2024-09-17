@@ -9,10 +9,10 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree
 from textual.widgets import Footer
+from textual.widgets import Label
 from textual.widgets import RichLog
 from textual.widgets import Static
 from textual.widgets import TextArea
-from textual.widgets import Label
 
 from misfits.data import _validate_fits
 from misfits.headers import Header

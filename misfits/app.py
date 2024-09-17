@@ -5,10 +5,10 @@ Author: Giuseppe Dilillo
 Date:   August 2024
 """
 
+from asyncio import sleep
 from asyncio import to_thread
 from math import ceil
 from pathlib import Path
-from asyncio import sleep
 
 from astropy.io import fits
 import click
@@ -30,8 +30,8 @@ from textual.widgets import TabPane
 from textual.widgets import Tree
 
 from misfits.data import _validate_fits
-from misfits.data import get_fits_content
 from misfits.data import DataContainer
+from misfits.data import get_fits_content
 from misfits.headers import MainHeader
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
@@ -127,7 +127,9 @@ class FitsTable(DataTable):
         self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
         self.show_page()
         self.post_message(self.QuerySucceded(True))
-        log.push(f"Filtered table by query {repr(query)}, {len(self.data)} matching entries.")
+        log.push(
+            f"Filtered table by query {repr(query)}, {len(self.data)} matching entries."
+        )
 
     def page_slice(self):
         """Returns a slice comprising entries to be displayed in present page."""
@@ -193,6 +195,7 @@ class FilterInput(Static):
 
 class TableDialog(Static):
     """A widget containing the data table and its filter."""
+
     def __init__(
         self,
         arr: fits.FITS_rec,
@@ -240,6 +243,7 @@ class TableDialog(Static):
 
 class EmptyDialog(Static):
     """A placeholder widget for when an HDU contains images or no data."""
+
     # TODO: Add a separate placeholder for images.
 
     def compose(self) -> ComposeResult:
@@ -335,13 +339,18 @@ class HDUPane(TabPane):
     @on(TabPane.Focused)
     def notify(self, _: TabPane.Focused) -> None:
         """This will alert main app to notify we are on a table with limitations."""
-        if not self.focused_already and self.content["is_table"] and not self.query_one(FitsTable).data.can_promote:
+        if (
+            not self.focused_already
+            and self.content["is_table"]
+            and not self.query_one(FitsTable).data.can_promote
+        ):
             self.post_message(self.FocusedUnpromotableTable(self.content["name"]))
         self.focused_already = True
 
 
 class FileInput(Static):
     """A widget showing an input for file paths."""
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")

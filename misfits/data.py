@@ -1,15 +1,14 @@
 from collections import OrderedDict
 from enum import Enum
-import re
-
 from pathlib import Path
+import re
 
 from astropy.io import fits
 from astropy.io.fits import BinTableHDU
-from astropy.io.fits import TableHDU
 from astropy.io.fits import FITS_rec
-import pandas as pd
+from astropy.io.fits import TableHDU
 import numpy as np
+import pandas as pd
 
 
 def is_table(hdu: fits.FitsHDU):
@@ -34,7 +33,7 @@ def parse_format(tform: str) -> tuple[int, str, str]:
     a string, representing additional information used for interpreting vector and
     variable length columns.
     """
-    pattern = r'([0-9]*)([LXBIJKAEDCMPQ])(.*)'
+    pattern = r"([0-9]*)([LXBIJKAEDCMPQ])(.*)"
     match = re.match(pattern, tform)
     if not match:
         # TODO: Handle this error
@@ -42,7 +41,7 @@ def parse_format(tform: str) -> tuple[int, str, str]:
     scount = match.group(1)
     type_char = match.group(2)
     matchA = match.group(3).strip()
-    count = 1 if scount == '' else int(scount)
+    count = 1 if scount == "" else int(scount)
     return count, type_char, matchA
 
 
@@ -103,9 +102,17 @@ class DataContainer:
     def __init__(self, records: FITS_rec):
         self.records: fits.FITS_rec | pd.DataFrame = records
         self._len = len(records)
-        self.columns = {col.name: get_column_type(col.format) for col in records.columns}
-        self.displayable_columns = [colname for colname, coltype in self.columns.items() if coltype is not ColumnType.VARLEN]
-        self.can_promote = all([coltype != ColumnType.VARLEN for coltype in self.columns.values()])
+        self.columns = {
+            col.name: get_column_type(col.format) for col in records.columns
+        }
+        self.displayable_columns = [
+            colname
+            for colname, coltype in self.columns.items()
+            if coltype is not ColumnType.VARLEN
+        ]
+        self.can_promote = all(
+            [coltype != ColumnType.VARLEN for coltype in self.columns.values()]
+        )
         self.promoted = False
         self.mask: None | pd.Index = None
 
@@ -131,7 +138,7 @@ class DataContainer:
     # this enables the usage of pandas queries. promotion happens at first filter call.
     # a promoted table cannot be demoted.
     def query(self, query: str):
-        """Leverage pandas queries to filter dataset"""""
+        """Leverage pandas queries to filter dataset""" ""
         if not self.can_promote:
             raise ValueError("Trying to filter an unpromotable table")
         if not self.promoted:
