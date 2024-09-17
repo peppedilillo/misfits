@@ -494,5 +494,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits(None, Path(r"."))
+    app = Misfits(None, Path("."))
     app.run()
