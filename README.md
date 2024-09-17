@@ -5,7 +5,7 @@
 
 Misfits is a FITs table viewer for the terminal, written in python.
 I want it to be snappy as hell and fully usable without touching the mouse.
-It currently has some limitations (e.g. won't display array or VLA columns), but will work on them eventually.
+It currently has some limitations (e.g. won't display VLA columns), but will work on them eventually.
 It leverages astropy and pandas, and is built using [textual](https://www.textualize.io/).
 Works on Linux, macOS and Windows. Performances on Windows are worse.
 Renders best on modern terminals: windows new terminal, macOS iTerm2, your typical linux distro is likely fine as it is.
