@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from misfits.data import ColumnType
 
 
 class LogLevel(Enum):
@@ -28,18 +29,26 @@ class Logger:
     def pop(self) -> str | None:
         return self.logstack.pop(0) if self.logstack else None
 
-    def push_fitcontents(self, content):
+    def push_hducontent(self, content):
         # fmt: off
         self.push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}")
         if content["is_table"]:
             ncols = len(content["data"].columns)
             self.push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns")
-            if content["columns_scalar"]:
-                self.push(f"Columns {content['columns_scalar']} are scalar.")
-            if content["columns_vector"]:
-                self.push(f"Columns {content['columns_vector']} are vectorial.")
-            if content["columns_varlen"]:
-                self.push(f"Columns {content['columns_varlen']} are variable length arrays.")
+        # fmt: on
+
+    def push_datacontent(self, data):
+        # fmt: off
+        columns = {coltype: [] for coltype in ColumnType}
+        for colname, coltype in data.columns.items():
+            columns[coltype].append(colname)
+
+        if scalar_columns := columns[ColumnType.SCALAR]:
+            self.push(f"Data table contains {len(scalar_columns)} scalar columns: {scalar_columns}")
+        if vector_columns := columns[ColumnType.VECTOR]:
+            self.push(f"Data table contains {len(vector_columns)} vector columns: {vector_columns}")
+        if varlen_columns := columns[ColumnType.VARLEN]:
+            self.push(f"Data table contains {len(varlen_columns)} variable len columns: {varlen_columns}", level = LogLevel.WARNING)
         # fmt: on
 
 

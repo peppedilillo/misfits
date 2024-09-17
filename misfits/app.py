@@ -8,11 +8,10 @@ Date:   August 2024
 from asyncio import to_thread
 from math import ceil
 from pathlib import Path
+from asyncio import sleep
 
 from astropy.io import fits
-from astropy.table import Table
 import click
-import pandas as pd
 from textual import on
 from textual import work
 from textual.app import App
@@ -32,6 +31,7 @@ from textual.widgets import Tree
 
 from misfits.data import _validate_fits
 from misfits.data import get_fits_content
+from misfits.data import DataContainer
 from misfits.headers import MainHeader
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
@@ -54,9 +54,13 @@ THEME = {
 
 DEFAULT_COLORS["dark"] = ColorSystem(**THEME)
 
+# fits table are displayed in small chunks (pages) to achieve better performances.
+# this parameter set the number of rows displayed per page within a FitsTable.
+PAGE_LEN = 100
+
 
 class FitsTable(DataTable):
-    """Displays fits records as a table organized in pages."""
+    """Displays fits data as a table arranged in pages."""
 
     BINDINGS = [
         ("shift+left", "back_page()", "Back"),
@@ -64,42 +68,34 @@ class FitsTable(DataTable):
         ("shift+up", "first_page()", "First"),
         ("shift+down", "last_page()", "Last"),
     ]
+    PAGE_DELAY = 1 / 60
 
     class QuerySucceded(Message):
-        """Color selected message."""
+        """A message to be sent when a query completes."""
 
         def __init__(self, query_succeded: bool) -> None:
             self.value = query_succeded
             super().__init__()
 
-    def __init__(
-        self, fits_records: fits.FITS_rec, cols: list[str], page_len: int = 50
-    ):
+    def __init__(self, data: DataContainer):
         """
-        :param fits_records: The dataframe to show
-        :param cols: Columns to show in table
-        :param page_len: How many dataframe rows are shown for each page.
-        filter for tables which would require huge loading time, such as tables with
-        variable length array columns.
+        :param data: a data container, see `misfits.data.DataContainer`.
         """
         super().__init__()
-        self.table: fits.FITS_rec | pd.DataFrame = fits_records
-        self.cols = cols
-        self.page_len = page_len
+        self.data: DataContainer = data
+        self.page_len = PAGE_LEN
         self.mask = None
-        # table gets promoted when first converted to dataframe.
-        # this enables the usage of pandas queries. promotion happens at first filter call.
-        # a promoted table cannot be demoted.
-        self.promoted = False
         self.page_no = 1  # starts from one
-        self.page_tot = max(ceil(len(fits_records) / page_len), 1)
+        self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
+        log.push_datacontent(data)
 
     def on_mount(self):
         self.border_title = "Table"
         self.cursor_type = "cell"
-        self.update_page_display()
+        self.add_columns(*self.data.get_columns())
+        self.show_page()
 
-    # this is an unfortunate solution to an unfortunate problem.
+    # this is unfortunate but necessary.
     # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
     # to its tabs. since tabs are holding references to large tables this may cause
     # potentially huge memory leaks. best solution i've managed so far is to delete
@@ -107,94 +103,84 @@ class FitsTable(DataTable):
     # passing references to functions around, with no luck.
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
-        del self.table
-        del self.mask
-        del self.cols
+        del self.data
         del self.page_len
+        del self.mask
         del self.page_no
         del self.page_tot
-
-    def display_table(self, rows: list[tuple], cols):
-        """Update with a new table."""
-        self.clear(columns=True)
-        self.add_columns(*cols)
-        self.add_rows(rows)
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
     async def filter_table(self, query: str):
         """
-        Filters a table according to a query and shows it's fist page.
+        Filters a table according to a query and shows a table page.
 
         :param query: the filter query
-        :return:
         """
         # noinspection PyBroadException
-        if not self.promoted:
-            self.table = Table(self.table).to_pandas()
-            self.promoted = True
         try:
-            fdf = await to_thread(self.table.query, query) if query else self.table
+            _ = await to_thread(self.data.query, query)
         except Exception:
             self.post_message(self.QuerySucceded(False))
             return
-        self.mask = fdf.index
         self.page_no = 1
-        self.page_tot = max(ceil(len(self.mask) / self.page_len), 1)
-        self.update_page_display()
+        self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
+        self.show_page()
         self.post_message(self.QuerySucceded(True))
-        log.push(f"Filtered table by query {repr(query)}, {len(fdf)} matching entries.")
+        log.push(f"Filtered table by query {repr(query)}, {len(self.data)} matching entries.")
 
     def page_slice(self):
-        """Returns a slice which can be used to index the present page."""
+        """Returns a slice comprising entries to be displayed in present page."""
         page = ((self.page_no - 1) * self.page_len, self.page_no * self.page_len)
         return slice(*page)
 
-    def update_page_display(self):
-        """Displays the present table page."""
-        if self.promoted:
-            table_slice = self.table.iloc[self.mask[self.page_slice()]]
-            self.display_table(
-                rows=table_slice.itertuples(index=False),
-                cols=self.cols,
-            )
-        else:
-            table_slice = self.table[self.page_slice()]
-            self.display_table(
-                # this looks eccentric but is faster than list comprehension and
-                # has the benefit of having homogenous formatting with promoted table
-                rows=Table(table_slice)[self.cols].to_pandas().itertuples(index=False),
-                cols=self.cols,
-            )
+    def show_page(self):
+        """Displays a table page."""
+        self.clear(columns=False)
+        self.add_rows(rows=self.data.get_rows(self.page_slice()))
         self.border_subtitle = f"page {self.page_no} / {self.page_tot} "
 
-    def action_next_page(self):
+    # the function is on a worker so that, if user keeps page turn pressed
+    # page displays won't accumulate in queue, resulting in pages still getting
+    # loaded after user releases the button.
+    # sleep enforces a maximum turning rate to tot pages per seconds.
+    # maybe we can live without that?
+    # TODO: make sure `PAGE_DELAY` is needed
+    @work(exclusive=True, group="turn_page")
+    async def action_next_page(self):
         """Scrolls to next page."""
+        await sleep(self.PAGE_DELAY)
         if self.page_no < self.page_tot:
             self.page_no += 1
-            self.update_page_display()
+            self.show_page()
 
-    def action_back_page(self):
+    @work(exclusive=True, group="turn_page")
+    async def action_back_page(self):
         """Scrolls to previous page."""
+        await sleep(self.PAGE_DELAY)
         if self.page_no > 1:
             self.page_no -= 1
-            self.update_page_display()
+            self.show_page()
 
-    def action_last_page(self):
+    @work(exclusive=True, group="turn_page")
+    async def action_last_page(self):
         """Scrolls to last page"""
+        await sleep(self.PAGE_DELAY)
         self.page_no = self.page_tot
-        self.update_page_display()
+        self.show_page()
 
-    def action_first_page(self):
+    @work(exclusive=True, group="turn_page")
+    async def action_first_page(self):
         """Scrolls to first page"""
+        await sleep(self.PAGE_DELAY)
         self.page_no = 1
-        self.update_page_display()
+        self.show_page()
 
     # TODO: add methods and binding for scrolling to `n` page.
 
 
 class FilterInput(Static):
-    """A prompt widget for filtering a table"""
+    """A widget displaying an input prompt for filtering a table"""
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -206,33 +192,26 @@ class FilterInput(Static):
 
 
 class TableDialog(Static):
-    """Hosts widgets for navigating a data table and filter it.
-    Table entries are shown in pages for responsiveness."""
-
+    """A widget containing the data table and its filter."""
     def __init__(
         self,
         arr: fits.FITS_rec,
-        cols: list[str],
-        page_len: int = 50,
         hide_filter: bool = False,
     ):
         """
-        :param arr: The dataframe to show
-        :param cols: Columns to show in table
-        :param page_len: How many dataframe rows are shown for each page.
+        :param arr: The fits records data.
         :param hide_filter: Wether if to show the table filter or none. We do not show
         filter for tables which would require huge loading time, such as tables with
         variable length array columns.
         """
         super().__init__()
-        self.page_len = page_len
         self.arr = arr
-        self.cols = cols
         self.hide_filter = hide_filter
 
     def compose(self) -> ComposeResult:
-        yield FitsTable(self.arr, self.cols, self.page_len)
-        if not self.hide_filter:
+        data = DataContainer(self.arr)
+        yield FitsTable(data)
+        if data.can_promote:
             yield FilterInput()
 
     def on_mount(self):
@@ -242,8 +221,6 @@ class TableDialog(Static):
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.arr
-        del self.cols
-        del self.page_len
 
     # async is needed since `filter_table` calls a worker
     @on(Input.Submitted)
@@ -262,7 +239,8 @@ class TableDialog(Static):
 
 
 class EmptyDialog(Static):
-    """When a FITs HDU contains an image or no data, displays a placeholder."""
+    """A placeholder widget for when an HDU contains images or no data."""
+    # TODO: Add a separate placeholder for images.
 
     def compose(self) -> ComposeResult:
         yield Label("No tables to show")
@@ -308,7 +286,7 @@ class HeaderDialog(Tree):
 
     @on(Tree.NodeSelected)
     def display_content_popup(self, event: Tree.NodeSelected):
-        """Opens a pop-up clicking on a header entry."""
+        """Opens a pop-up when a header entry is selected."""
         if event.node in self.leafs:
             self.app.push_screen(HeaderEntry(event.node.data))
 
@@ -323,15 +301,11 @@ class HeaderDialog(Tree):
                     node.expand()
 
 
-def _is_promotable(content):
-    return not (content["columns_varlen"] or content["columns_vector"])
-
-
 class HDUPane(TabPane):
     """A container for header and table widgets."""
 
     class FocusedUnpromotableTable(Message):
-        """Color selected message."""
+        """A message to be sent when loading tables we do not fully support."""
 
         def __init__(self, table_name) -> None:
             self.table_name = table_name
@@ -339,20 +313,16 @@ class HDUPane(TabPane):
 
     def __init__(self, content: dict, **kwargs):
         self.content = content
+        self._name = content["name"] if content["name"].strip() else "HDU"
         self.focused_already = False
-        super().__init__(
-            content["name"] if content["name"].strip() else "HDU", **kwargs
-        )
+        super().__init__(self._name, **kwargs)
+        log.push_hducontent(content)
 
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield HeaderDialog(self.content["header"])
             if self.content["is_table"]:
-                yield TableDialog(
-                    self.content["data"],
-                    self.content["columns_scalar"],
-                    hide_filter=False if _is_promotable(self.content) else True,
-                )
+                yield TableDialog(self.content["data"])
             else:
                 yield EmptyDialog()
 
@@ -360,16 +330,18 @@ class HDUPane(TabPane):
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.content
+        del self._name
 
     @on(TabPane.Focused)
     def notify(self, _: TabPane.Focused) -> None:
         """This will alert main app to notify we are on a table with limitations."""
-        if not self.focused_already and not _is_promotable(self.content):
+        if not self.focused_already and self.content["is_table"] and not self.query_one(FitsTable).data.can_promote:
             self.post_message(self.FocusedUnpromotableTable(self.content["name"]))
         self.focused_already = True
 
 
 class FileInput(Static):
+    """A widget showing an input for file paths."""
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")
@@ -442,8 +414,8 @@ class Misfits(App):
     @on(HDUPane.FocusedUnpromotableTable)
     def notify_limitatiion(self, message: HDUPane.FocusedUnpromotableTable):
         self.notify(
-            f"Table {message.table_name} contains array columns. "
-            f"Array columns cannot be displayed. Filter has been disabled.",
+            f"Table {message.table_name} contains array columns with variable length. "
+            f"Unfortunately, these columns cannot be displayed. Filter has been disabled.",
             severity="warning",
             timeout=5,
         )
@@ -481,7 +453,6 @@ class Misfits(App):
                     # switches to a pane if that pane contains a table
                     if content["is_table"]:
                         self.query_one(TabbedContent).active = tab_id
-                    log.push_fitcontents(content)
             log.push(f"Reading FITS file took {elapsed():.3f} s")
         self.query_one(MainHeader).maybe_run_effect()
 
@@ -514,5 +485,5 @@ def main(input_path: Path):
 
 
 if __name__ == "__main__":
-    app = Misfits(None, Path(r"D:/Dropbox/Progetti/"))
+    app = Misfits(None, Path(r"../.."))
     app.run()
