@@ -3,6 +3,5 @@
 **/__pycache__
 **/.ipynb_checkpoints
 **/.mypy-cache
-**/*.fits
 *venv*/
 dist/
