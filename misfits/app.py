@@ -87,7 +87,7 @@ class FitsTable(DataTable):
         self.mask = None
         self.page_no = 1  # starts from one
         self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
-        log.push_datacontent(data)
+        log.push_data_info(data)
 
     def on_mount(self):
         self.border_title = "Table"
@@ -320,7 +320,7 @@ class HDUPane(TabPane):
         self._name = content["name"] if content["name"].strip() else "HDU"
         self.focused_already = False
         super().__init__(self._name, **kwargs)
-        log.push_hducontent(content)
+        log.push_hdu_info(content)
 
     def compose(self) -> ComposeResult:
         with Horizontal():

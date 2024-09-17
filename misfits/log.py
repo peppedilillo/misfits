@@ -30,7 +30,7 @@ class Logger:
     def pop(self) -> str | None:
         return self.logstack.pop(0) if self.logstack else None
 
-    def push_hducontent(self, content):
+    def push_hdu_info(self, content):
         # fmt: off
         self.push(f"Found HDU {repr(content['name'])} of type {repr(content['type'])}")
         if content["is_table"]:
@@ -38,7 +38,7 @@ class Logger:
             self.push(f"HDU contains a table with {len(content['data'])} rows and {ncols} columns")
         # fmt: on
 
-    def push_datacontent(self, data):
+    def push_data_info(self, data):
         # fmt: off
         columns = {coltype: [] for coltype in ColumnType}
         for colname, coltype in data.columns.items():
