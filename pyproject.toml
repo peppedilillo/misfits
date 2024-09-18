@@ -9,7 +9,9 @@ authors = [
     { name="Giuseppe Dilillo", email="peppedilillo@gmail.com" },
 ]
 description = "A FITS table viewer for the terminal."
+keywords = ["FITS", "Flexible Image Transport System", "Astrophysics"]
 readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
