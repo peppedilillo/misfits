@@ -80,13 +80,13 @@ InfoScreen Container {
 }
 
 FileExplorerScreen {
-  align: center middle
+  align: center middle;
 }
 
 FileExplorerScreen Container {
   align: center middle;
-  width: 60;
-  height: 18;
+  width: 75%;
+  height: 75%;
   padding: 0 1;
   border: thick $background;
   background: $surface;
