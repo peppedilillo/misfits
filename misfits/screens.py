@@ -37,7 +37,7 @@ class LogScreen(ModalScreen):
 
 
 class InfoScreen(ModalScreen):
-    """Shows an information screen with cool effects."""
+    """Shows an information screen."""
 
     BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
 

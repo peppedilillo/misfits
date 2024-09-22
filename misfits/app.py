@@ -29,7 +29,9 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
+from textual.widgets.tabbed_content import ContentTabs
 from textual.screen import Screen
+from textual.reactive import reactive
 
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
@@ -72,6 +74,8 @@ class FitsTable(DataTable):
     ]
     PAGE_DELAY = 1 / 60
 
+    page_no = reactive(1, bindings=True)
+
     class QuerySucceded(Message):
         """A message to be sent when a query completes."""
 
@@ -106,10 +110,7 @@ class FitsTable(DataTable):
     # TODO: remove once textual resolves this bug.
     def on_unmount(self):
         del self.data
-        del self.page_len
         del self.mask
-        del self.page_no
-        del self.page_tot
 
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
@@ -125,7 +126,6 @@ class FitsTable(DataTable):
         except Exception:
             self.post_message(self.QuerySucceded(False))
             return
-        self.page_no = 1
         self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
         self.show_page()
         self.post_message(self.QuerySucceded(True))
@@ -180,12 +180,21 @@ class FitsTable(DataTable):
         self.page_no = 1
         self.show_page()
 
+    def check_action(
+        self, action: str, parameters: tuple[object, ...]
+    ) -> bool | None:
+        """Checks if an action may run."""
+        if action in ["first_page", "back_page"] and self.page_no == 1:
+            return None
+        if action in ["last_page", "next_page"] and self.page_no == self.page_tot:
+            return None
+        return True
+
     # TODO: add methods and binding for scrolling to `n` page.
 
 
 class FilterInput(Static):
     """A widget displaying an input prompt for filtering a table"""
-
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label("[dim italic] query: ")
@@ -352,6 +361,16 @@ class HDUPane(TabPane):
 
 class FileInput(Static):
     """A widget showing an input for file paths."""
+    BINDINGS = [
+        ("ctrl+o", "open_explorer", "Open file explorer"),
+    ]
+
+    class RequestFileExplorer(Message):
+        """A message for the main app, asking for the file explorer to be displayed."""
+
+        def __init__(self) -> None:
+            super().__init__()
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")
@@ -362,6 +381,9 @@ class FileInput(Static):
 
     def set_input_value(self, value: str):
         self.query_one(Input).value = value
+
+    def action_open_explorer(self):
+        self.post_message(self.RequestFileExplorer())
 
 
 class Misfits(App):
@@ -374,9 +396,8 @@ class Misfits(App):
         "info": InfoScreen,
     }
     BINDINGS = [
-        ("ctrl+l", "push_screen('log')", "Log"),
-        ("ctrl+j", "push_screen('info')", "Info"),
-        ("ctrl+o", "open_explorer", "Open"),
+        ("ctrl+l", "show_log", "Log"),
+        ("ctrl+j", "show_info", "Info"),
     ]
 
     def __init__(self, filepath: Path | None, root_dir: Path = Path.cwd()) -> None:
@@ -402,6 +423,20 @@ class Misfits(App):
         yield from (c for c in super().get_system_commands(screen) if c.title != "Light mode")
         yield SystemCommand("Show log", "Displays a log of misfits operations.", lambda: self.push_screen('log'))
         yield SystemCommand("More informations", "Displays information on misfits.", lambda: self.push_screen('info'))
+
+    def action_show_log(self):
+        self.push_screen('log')
+
+    def action_show_info(self):
+        self.push_screen('info')
+
+    def check_action(
+        self, action: str, parameters: tuple[object, ...]
+    ) -> bool | None:
+        """Checks if an action may run."""
+        if action in ["show_log", "show_info", "open_explorer"] and not isinstance(self.focused, ContentTabs):
+            return False
+        return True
 
     # `push_screen_wait` requires a worker
     @work
@@ -436,9 +471,10 @@ class Misfits(App):
             timeout=5,
         )
 
+    @on(FileInput.RequestFileExplorer)
     # `push_screen_wait` requires a worker
     @work
-    async def action_open_explorer(self):
+    async def open_explorer(self):
         self.filepath = await self.push_screen_wait(
             EscapableFileExplorerScreen(self.rootdir)
         )
