@@ -9,12 +9,13 @@ from asyncio import sleep
 from asyncio import to_thread
 from math import ceil
 from pathlib import Path
+from typing import Iterable
 
 from astropy.io import fits
 import click
 from textual import on
 from textual import work
-from textual.app import App
+from textual.app import App, SystemCommand
 from textual.app import ComposeResult
 from textual.app import DEFAULT_COLORS
 from textual.containers import Horizontal
@@ -28,6 +29,7 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
+from textual.screen import Screen
 
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
@@ -42,7 +44,7 @@ from misfits.screens import LogScreen
 from misfits.utils import catchtime
 from misfits.utils import disable_inputs
 
-THEME = {
+DARK_THEME = {
     "primary": "#03A062",  # matrix green
     "secondary": "#03A062",
     "warning": "#03A062",
@@ -52,7 +54,7 @@ THEME = {
     "dark": True,
 }
 
-DEFAULT_COLORS["dark"] = ColorSystem(**THEME)
+DEFAULT_COLORS["dark"] = ColorSystem(**DARK_THEME)
 
 # fits table are displayed in small chunks (pages) to achieve better performances.
 # this parameter set the number of rows displayed per page within a FitsTable.
@@ -350,7 +352,6 @@ class HDUPane(TabPane):
 
 class FileInput(Static):
     """A widget showing an input for file paths."""
-
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")
@@ -396,6 +397,12 @@ class Misfits(App):
         yield FileInput()
         yield Footer()
 
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        # skips light mode toggle since, at present, it will mess with CSS and headers
+        yield from (c for c in super().get_system_commands(screen) if c.title != "Light mode")
+        yield SystemCommand("Show log", "Displays a log of misfits operations.", lambda: self.push_screen('log'))
+        yield SystemCommand("More informations", "Displays information on misfits.", lambda: self.push_screen('info'))
+
     # `push_screen_wait` requires a worker
     @work
     async def on_mount(self):
@@ -421,7 +428,7 @@ class Misfits(App):
         self.populate_tabs()
 
     @on(HDUPane.FocusedUnpromotableTable)
-    def notify_limitatiion(self, message: HDUPane.FocusedUnpromotableTable):
+    def notify_unpromotable(self, message: HDUPane.FocusedUnpromotableTable):
         self.notify(
             f"Table {message.table_name} contains array columns with variable length. "
             f"Unfortunately, these columns cannot be displayed. Filter has been disabled.",
