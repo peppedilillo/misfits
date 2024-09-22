@@ -11,7 +11,7 @@ from math import ceil
 from pathlib import Path
 from typing import Iterable
 
-from astropy.io import fits
+from astropy.io.fits import FITS_rec
 import click
 from textual import on
 from textual import work
@@ -209,7 +209,7 @@ class TableDialog(Static):
 
     def __init__(
         self,
-        arr: fits.FITS_rec,
+        arr: FITS_rec,
         hide_filter: bool = False,
     ):
         """

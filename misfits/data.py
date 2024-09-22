@@ -4,16 +4,13 @@ from pathlib import Path
 import re
 
 from astropy.io import fits
-from astropy.io.fits import BinTableHDU
-from astropy.io.fits import FITS_rec
-from astropy.io.fits import TableHDU
-import numpy as np
-import pandas as pd
+from numpy import round
+from pandas import DataFrame, Index
 
 
 def is_table(hdu: fits.FitsHDU):
     """Check whether and HDU contains table data."""
-    return type(hdu) in [TableHDU, BinTableHDU]
+    return type(hdu) in [fits.TableHDU, fits.BinTableHDU]
 
 
 class ColumnType(Enum):
@@ -99,8 +96,8 @@ class DataContainer:
     It makes data representable on the user machine, determines which columns to show,
     dispatch table entries and deals with dataset queries, when queries are possible."""
 
-    def __init__(self, records: FITS_rec):
-        self.records: fits.FITS_rec | pd.DataFrame = records
+    def __init__(self, records: fits.FITS_rec):
+        self.records: fits.FITS_rec | DataFrame = records
         self._len = len(records)
         self.columns = {
             col.name: get_column_type(col.format) for col in records.columns
@@ -114,14 +111,14 @@ class DataContainer:
             [coltype != ColumnType.VARLEN for coltype in self.columns.values()]
         )
         self.promoted = False
-        self.mask: None | pd.Index = None
+        self.mask: None | Index = None
 
     def __len__(self):
         """Returns length of possibly filtered dataset."""
         return self._len
 
     @staticmethod
-    def maybe_correct_endianess(records: FITS_rec):
+    def maybe_correct_endianess(records: fits.FITS_rec):
         """Convert FITS records to user machine endiannes if they differ."""
         if not records.dtype.isnative:
             records = records.byteswap().view(records.dtype.newbyteorder("="))
@@ -170,9 +167,9 @@ class DataContainer:
                 if column.dtype.kind == "f":
                     # this is a workaround to Textual not applying cell formatting
                     # recursively. TODO: improve this logic?
-                    column = np.round(column, 2)
+                    column = round(column, 2)
                 column = column.tolist()
             out[colname] = column
 
-        df = pd.DataFrame(out, index=None)
+        df = DataFrame(out, index=None)
         return df
