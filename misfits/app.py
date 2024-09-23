@@ -101,17 +101,6 @@ class FitsTable(DataTable):
         self.add_columns(*self.data.get_columns())
         self.show_page()
 
-    # this is unfortunate but necessary.
-    # as per textual 0.77, `TabbedContent.clear_panes()` does not clear all references
-    # to its tabs. since tabs are holding references to large tables this may cause
-    # potentially huge memory leaks. best solution i've managed so far is to delete
-    # references to tables on unmounting. i've tried different solutions such as
-    # passing references to functions around, with no luck.
-    # TODO: remove once textual resolves this bug.
-    def on_unmount(self):
-        del self.data
-        del self.mask
-
     # runs possibly slow filter operation with a worker to avoid UI lags
     @work(exclusive=True, group="filter_table")
     async def filter_table(self, query: str):
@@ -231,11 +220,6 @@ class TableDialog(Static):
     def on_mount(self):
         self.border_title = "Table"
 
-    # see note on `TableDialog.on_unmount`.
-    # TODO: remove once textual resolves this bug.
-    def on_unmount(self):
-        del self.arr
-
     # async is needed since `filter_table` calls a worker
     @on(Input.Submitted)
     async def maybe_filter_table(self, event: Input.Submitted):
@@ -294,11 +278,6 @@ class HeaderDialog(Tree):
         self.show_guides = True
         self.root.expand()
 
-    # see note on `TableDialog.on_unmount`.
-    # TODO: remove once textual resolves this bug.
-    def on_unmount(self):
-        del self.leafs
-
     @on(Tree.NodeSelected)
     def display_content_popup(self, event: Tree.NodeSelected):
         """Opens a pop-up when a header entry is selected."""
@@ -340,12 +319,6 @@ class HDUPane(TabPane):
                 yield TableDialog(self.content["data"])
             else:
                 yield EmptyDialog()
-
-    # see note on `TableDialog.on_unmount`.
-    # TODO: remove once textual resolves this bug.
-    def on_unmount(self):
-        del self.content
-        del self._name
 
     @on(TabPane.Focused)
     def notify(self, _: TabPane.Focused) -> None:
