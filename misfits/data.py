@@ -5,7 +5,8 @@ import re
 
 from astropy.io import fits
 from numpy import round
-from pandas import DataFrame, Index
+from pandas import DataFrame
+from pandas import Index
 
 
 def is_table(hdu: fits.FitsHDU):

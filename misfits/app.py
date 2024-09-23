@@ -15,12 +15,15 @@ from astropy.io.fits import FITS_rec
 import click
 from textual import on
 from textual import work
-from textual.app import App, SystemCommand
+from textual.app import App
 from textual.app import ComposeResult
 from textual.app import DEFAULT_COLORS
+from textual.app import SystemCommand
 from textual.containers import Horizontal
 from textual.design import ColorSystem
 from textual.message import Message
+from textual.reactive import reactive
+from textual.screen import Screen
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Input
@@ -30,8 +33,6 @@ from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
 from textual.widgets.tabbed_content import ContentTabs
-from textual.screen import Screen
-from textual.reactive import reactive
 
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
@@ -169,9 +170,7 @@ class FitsTable(DataTable):
         self.page_no = 1
         self.show_page()
 
-    def check_action(
-        self, action: str, parameters: tuple[object, ...]
-    ) -> bool | None:
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Checks if an action may run."""
         if action in ["first_page", "back_page"] and self.page_no == 1:
             return None
@@ -184,6 +183,7 @@ class FitsTable(DataTable):
 
 class FilterInput(Static):
     """A widget displaying an input prompt for filtering a table"""
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label("[dim italic] query: ")
@@ -334,6 +334,7 @@ class HDUPane(TabPane):
 
 class FileInput(Static):
     """A widget showing an input for file paths."""
+
     BINDINGS = [
         ("ctrl+o", "open_explorer", "Open file explorer"),
     ]
@@ -393,21 +394,31 @@ class Misfits(App):
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         # skips light mode toggle since, at present, it will mess with CSS and headers
-        yield from (c for c in super().get_system_commands(screen) if c.title != "Light mode")
-        yield SystemCommand("Show log", "Displays a log of misfits operations.", lambda: self.push_screen('log'))
-        yield SystemCommand("More informations", "Displays information on misfits.", lambda: self.push_screen('info'))
+        yield from (
+            c for c in super().get_system_commands(screen) if c.title != "Light mode"
+        )
+        yield SystemCommand(
+            "Show log",
+            "Displays a log of misfits operations.",
+            lambda: self.push_screen("log"),
+        )
+        yield SystemCommand(
+            "More informations",
+            "Displays information on misfits.",
+            lambda: self.push_screen("info"),
+        )
 
     def action_show_log(self):
-        self.push_screen('log')
+        self.push_screen("log")
 
     def action_show_info(self):
-        self.push_screen('info')
+        self.push_screen("info")
 
-    def check_action(
-        self, action: str, parameters: tuple[object, ...]
-    ) -> bool | None:
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Checks if an action may run."""
-        if action in ["show_log", "show_info", "open_explorer"] and not isinstance(self.focused, ContentTabs):
+        if action in ["show_log", "show_info", "open_explorer"] and not isinstance(
+            self.focused, ContentTabs
+        ):
             return False
         return True
 
