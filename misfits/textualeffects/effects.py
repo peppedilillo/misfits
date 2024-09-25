@@ -1,7 +1,7 @@
 """
 Based on the EffectLabel widget by Yiorgis Gozadinos, from textualeffects, see
 https://github.com/ggozad/textualeffects/tree/main
-License is provided in ./LICENSE.
+License is provided in ./LICENSE.txt.
 """
 
 import asyncio
