@@ -6,7 +6,7 @@ from textual.widgets import Label
 from textual.widgets import Static
 
 from misfits import __version__
-from misfits.effects import EffectLabel
+from misfits.textualeffects.effects import EffectLabel
 
 
 def labelize(arg: Label | EffectLabel | str | None):

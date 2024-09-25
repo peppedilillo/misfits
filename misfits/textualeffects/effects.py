@@ -1,9 +1,7 @@
 """
-credits:  Yiorgis Gozadinos. Thank you!
-https://github.com/ggozad
-
-Yiorgis did not publish the code with a licence, but I reserve to distribute his license
-if he will publish one in the future.
+Based on the EffectLabel widget by Yiorgis Gozadinos, from textualeffects, see
+https://github.com/ggozad/textualeffects/tree/main
+License is provided in ./LICENSE.
 """
 
 import asyncio
