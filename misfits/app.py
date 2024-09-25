@@ -46,6 +46,7 @@ from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
 from misfits.utils import catchtime
 from misfits.utils import disable_inputs
+from misfits.suggester import PathSuggester
 
 DARK_THEME = {
     "primary": "#03A062",  # matrix green
@@ -348,7 +349,7 @@ class FileInput(Static):
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")
-            yield Input()
+            yield Input(suggester=PathSuggester())
 
     def on_mount(self):
         self.border_title = "File"
