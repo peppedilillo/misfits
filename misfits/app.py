@@ -362,7 +362,10 @@ class FileInput(Static):
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label(f"[dim italic] path: ")
-            yield Input(suggester=PathSuggester())
+            yield Input(
+                placeholder="~/path/to/some/file.fits",
+                suggester=PathSuggester(),
+            )
 
     def on_mount(self):
         self.border_title = "File"
