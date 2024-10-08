@@ -182,8 +182,14 @@ class FitsTable(DataTable):
     # TODO: add methods and binding for scrolling to `n` page.
 
 
+CLEAR_PROMPT_LABEL = "Clear"
+
+
 class FilterInput(Static):
     """A widget displaying an input prompt for filtering a table"""
+    BINDINGS = [
+        ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
+    ]
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -192,6 +198,9 @@ class FilterInput(Static):
 
     def on_mount(self):
         self.border_title = "Filter"
+
+    def action_clear(self):
+        self.query_one(Input).value = ""
 
 
 class TableDialog(Static):
@@ -333,11 +342,15 @@ class HDUPane(TabPane):
         self.focused_already = True
 
 
+BROWSE_FILE_LABEL = "Browse files"
+
+
 class FileInput(Static):
     """A widget showing an input for file paths."""
 
     BINDINGS = [
-        ("ctrl+o", "open_explorer", "Open file explorer"),
+        ("ctrl+o", "open_explorer", BROWSE_FILE_LABEL),
+        ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
     ]
 
     class RequestFileExplorer(Message):
@@ -360,6 +373,9 @@ class FileInput(Static):
     def action_open_explorer(self):
         self.post_message(self.RequestFileExplorer())
 
+    def action_clear(self):
+        self.query_one(Input).value = ""
+
 
 class Misfits(App):
     """Misfits, the main app."""
@@ -371,6 +387,7 @@ class Misfits(App):
         "info": InfoScreen,
     }
     BINDINGS = [
+        ("ctrl+o", "open_explorer", BROWSE_FILE_LABEL),
         ("ctrl+l", "show_log", "Log"),
         ("ctrl+j", "show_info", "Info"),
     ]
@@ -459,7 +476,7 @@ class Misfits(App):
     @on(FileInput.RequestFileExplorer)
     # `push_screen_wait` requires a worker
     @work
-    async def open_explorer(self):
+    async def action_open_explorer(self):
         self.filepath = await self.push_screen_wait(
             EscapableFileExplorerScreen(self.rootdir)
         )
