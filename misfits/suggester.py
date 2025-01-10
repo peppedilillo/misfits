@@ -29,9 +29,7 @@ class PathSuggester(Suggester):
             name = path.name
             possible_paths = [
                 str(sibling_path)
-                for sibling_path in itertools.islice(
-                    path.parent.expanduser().iterdir(), 100
-                )
+                for sibling_path in itertools.islice(path.parent.expanduser().iterdir(), 100)
                 if sibling_path.name.lower().startswith(name.lower()) and is_directory_or_fitsfile(sibling_path)
             ]
             if possible_paths:

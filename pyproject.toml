@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "astropy >= 6.1",
+    "astropy >= 7.0",
     "pandas >= 2.2",
     "terminaltexteffects >= 0.11",
     "textual >= 0.80",

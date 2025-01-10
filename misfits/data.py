@@ -100,17 +100,11 @@ class DataContainer:
     def __init__(self, records: fits.FITS_rec):
         self.records: fits.FITS_rec | DataFrame = records
         self._len = len(records)
-        self.columns = {
-            col.name: get_column_type(col.format) for col in records.columns
-        }
+        self.columns = {col.name: get_column_type(col.format) for col in records.columns}
         self.displayable_columns = [
-            colname
-            for colname, coltype in self.columns.items()
-            if coltype is not ColumnType.VARLEN
+            colname for colname, coltype in self.columns.items() if coltype is not ColumnType.VARLEN
         ]
-        self.can_promote = all(
-            [coltype != ColumnType.VARLEN for coltype in self.columns.values()]
-        )
+        self.can_promote = all([coltype != ColumnType.VARLEN for coltype in self.columns.values()])
         self.promoted = False
         self.mask: None | Index = None
 
