@@ -1,13 +1,8 @@
 from datetime import datetime
-from enum import Enum
 
-from misfits.data import ColumnType
+from astropy.io.fits.verify import VerifyWarning
 
-
-class LogLevel(Enum):
-    INFO = 0
-    WARNING = 1
-    ERROR = 2
+from misfits.types import ColumnType, LogLevel
 
 
 class Logger:
@@ -51,6 +46,10 @@ class Logger:
         if varlen_columns := columns[ColumnType.VARLEN]:
             self.push(f"Data table contains {len(varlen_columns)} variable len columns: {varlen_columns}", level = LogLevel.WARNING)
         # fmt: on
+
+    def push_verification_warning(self, warnings: list[VerifyWarning]):
+        for w in warnings:
+            self.push(str(w.message).rstrip(), level=LogLevel.WARNING)
 
 
 log = Logger()

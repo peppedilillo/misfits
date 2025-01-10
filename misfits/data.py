@@ -1,23 +1,21 @@
 from collections import OrderedDict
-from enum import Enum
 from pathlib import Path
 import re
+import warnings
 
+from astropy.io.fits.verify import VerifyWarning
 from astropy.io import fits
 from numpy import round
 from pandas import DataFrame
 from pandas import Index
 
+from .log import log
+from .types import ColumnType, LogLevel
+
 
 def is_table(hdu: fits.FitsHDU):
     """Check whether and HDU contains table data."""
     return type(hdu) in [fits.TableHDU, fits.BinTableHDU]
-
-
-class ColumnType(Enum):
-    SCALAR = 0
-    VECTOR = 1
-    VARLEN = 2
 
 
 def parse_format(tform: str) -> tuple[int, str, str]:
@@ -59,8 +57,17 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     """Retrieves content from a FITS file and stores it in a tuple dict.
     Each tuple's records referes to one FITS HDU.
     Can take some time for large tables"""
+
     content = []
     with fits.open(fits_path) as hdul:
+        # for the relevant astropy documentation, see:
+        # https://docs.astropy.org/en/latest/io/fits/usage/verification.html
+        with warnings.catch_warnings(
+                record=True,
+                category=VerifyWarning,
+        ) as ws:
+            hdul.verify("fix")
+            log.push_verification_warning(ws)
         for hdu in hdul:
             content.append(
                 {
