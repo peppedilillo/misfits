@@ -190,6 +190,12 @@ class FilterInput(Static):
         ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
     ]
 
+    class ClearTable(Message):
+        """A message to be sent when a query completes."""
+
+        def __init__(self) -> None:
+            super().__init__()
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             yield Label("[dim italic] query: ")
@@ -200,6 +206,7 @@ class FilterInput(Static):
 
     def action_clear(self):
         self.query_one(Input).value = ""
+        self.post_message(self.ClearTable())
 
 
 class TableDialog(Static):
@@ -243,6 +250,10 @@ class TableDialog(Static):
             self.query_one(FilterInput).remove_class("error")
         else:
             self.query_one(FilterInput).add_class("error")
+
+    @on(FilterInput.ClearTable)
+    def reset_fits_table(self, message: FitsTable.QuerySucceded):
+        self.query_one(FitsTable).filter_table("")
 
 
 class EmptyDialog(Static):
@@ -340,15 +351,8 @@ class FileInput(Static):
     """A widget showing an input for file paths."""
 
     BINDINGS = [
-        ("ctrl+o", "open_explorer", BROWSE_FILE_LABEL),
         ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
     ]
-
-    class RequestFileExplorer(Message):
-        """A message for the main app, asking for the file explorer to be displayed."""
-
-        def __init__(self) -> None:
-            super().__init__()
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -363,9 +367,6 @@ class FileInput(Static):
 
     def set_input_value(self, value: str):
         self.query_one(Input).value = value
-
-    def action_open_explorer(self):
-        self.post_message(self.RequestFileExplorer())
 
     def action_clear(self):
         self.query_one(Input).value = ""
@@ -424,9 +425,12 @@ class Misfits(App):
     def action_show_info(self):
         self.push_screen("info")
 
+    # this is to avoid having secondary key bindings to pop up in footer, when the footer
+    # is already crowded, e.g., when going through the fits's table records
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Checks if an action may run."""
-        if action in ["show_log", "show_info", "open_explorer"] and not isinstance(self.focused, ContentTabs):
+        """Checks if an action may run or not, given the current focused widget."""
+        _, labels, _ = zip(*self.BINDINGS)
+        if action in labels and isinstance(self.focused, FitsTable):
             return False
         return True
 
@@ -461,7 +465,6 @@ class Misfits(App):
             timeout=5,
         )
 
-    @on(FileInput.RequestFileExplorer)
     # `push_screen_wait` requires a worker
     @work
     async def action_open_explorer(self):

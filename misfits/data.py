@@ -119,20 +119,6 @@ class DataContainer:
         """Returns length of possibly filtered dataset."""
         return self._len
 
-    @staticmethod
-    def maybe_correct_endianess(records: fits.FITS_rec):
-        """Convert FITS records to user machine endiannes if they differ."""
-        if not records.dtype.isnative:
-            records = records.byteswap().view(records.dtype.newbyteorder("="))
-        return records
-
-    def promote(self):
-        """Promote a fits records table to a proper dataframe."""
-        assert self.can_promote
-        self.promoted = True
-        self.records = self._to_pandas(self.records)  # Table(self.records).to_pandas()
-        self.mask = self.records.index
-
     # table gets promoted when first converted to dataframe.
     # this enables the usage of pandas queries. promotion happens at first filter call.
     # a promoted table cannot be demoted.
@@ -141,7 +127,7 @@ class DataContainer:
         if not self.can_promote:
             raise ValueError("Trying to filter an unpromotable table")
         if not self.promoted:
-            self.promote()
+            self._promote()
         filtered_df = self.records.query(query) if query else self.records
         self.mask = filtered_df.index
         self._len = len(filtered_df)
@@ -160,11 +146,25 @@ class DataContainer:
         """Dispatch table's displayable columns"""
         return self.displayable_columns
 
+    @staticmethod
+    def _maybe_correct_endianess(records: fits.FITS_rec):
+        """Convert FITS records to user machine endiannes if they differ."""
+        if not records.dtype.isnative:
+            records = records.byteswap().view(records.dtype.newbyteorder("="))
+        return records
+
+    def _promote(self):
+        """Promote a fits records table to a proper dataframe."""
+        assert self.can_promote
+        self.promoted = True
+        self.records = self._to_pandas(self.records)  # Table(self.records).to_pandas()
+        self.mask = self.records.index
+
     def _to_pandas(self, table):
         """Transforms a fits records table into a dataframe"""
         out = OrderedDict()
         for colname in self.displayable_columns:
-            column = self.maybe_correct_endianess(table[colname])
+            column = self._maybe_correct_endianess(table[colname])
             if self.columns[colname] is ColumnType.VECTOR:
                 if column.dtype.kind == "f":
                     # this is a workaround to Textual not applying cell formatting
