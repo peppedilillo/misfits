@@ -86,7 +86,7 @@ FITS_SIGNATURE = b"SIMPLE  =                    T"
 
 def _validate_fits(filepath: Path) -> bool:
     """Checks if a file is a FITS."""
-    # Following the same approach of astropy.
+    # follows the same approach of astropy.
     try:
         with open(filepath, "rb") as file:
             # FITS signature is supposed to be in the first 30 bytes, but to
