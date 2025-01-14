@@ -23,7 +23,7 @@ dependencies = [
     "astropy >= 7.0",
     "pandas >= 2.2",
     "terminaltexteffects >= 0.11",
-    "textual >= 0.80",
+    "textual >= 1.0",
     "click >= 8.1",
 ]
 

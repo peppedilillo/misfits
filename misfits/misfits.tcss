@@ -6,6 +6,7 @@ DataTable > .datatable--header {
 
 FitsTable {
   height: 1fr;
+  background: $background;
   border: round $secondary;
   border-subtitle-align: right;
   & :focus-within {
@@ -14,7 +15,7 @@ FitsTable {
 }
 
 HeaderDialog {
-  width: 27; /* change HeaderDialog's ellipsis accordingly */
+  width: 1fr; /* change HeaderDialog's ellipsis accordingly */
   border: round $secondary;
   background: $background;
   & :focus-within {
@@ -23,11 +24,11 @@ HeaderDialog {
 }
 
 TableDialog {
-  width: 1fr;
+  width: 3fr;
 }
 
 EmptyDialog {
-  width: 1fr;
+  width: 3fr;
   height: 1fr;
   border: round $secondary;
   align: center middle;

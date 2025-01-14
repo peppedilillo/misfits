@@ -17,7 +17,6 @@ from textual import on
 from textual import work
 from textual.app import App
 from textual.app import ComposeResult
-from textual.app import DEFAULT_COLORS
 from textual.app import SystemCommand
 from textual.containers import Horizontal
 from textual.design import ColorSystem
@@ -33,32 +32,38 @@ from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
 from textual.widgets.tabbed_content import ContentTabs
+from textual.theme import Theme
 
-from misfits.data import _validate_fits
-from misfits.data import DataContainer
-from misfits.data import get_fits_content
-from misfits.headers import MainHeader
-from misfits.log import log
-from misfits.screens import EscapableFileExplorerScreen
-from misfits.screens import FileExplorerScreen
-from misfits.screens import HeaderEntry
-from misfits.screens import InfoScreen
-from misfits.screens import LogScreen
-from misfits.utils import catchtime
-from misfits.utils import disable_inputs
-from misfits.suggester import PathSuggester
+from .data import _validate_fits
+from .data import DataContainer
+from .data import get_fits_content
+from .headers import MainHeader
+from .log import log
+from .screens import EscapableFileExplorerScreen
+from .screens import FileExplorerScreen
+from .screens import HeaderEntry
+from .screens import InfoScreen
+from .screens import LogScreen
+from .utils import catchtime
+from .utils import disable_inputs
+from .suggester import PathSuggester
 
-DARK_THEME = {
-    "primary": "#03A062",  # matrix green
-    "secondary": "#03A062",
-    "warning": "#03A062",
-    "error": "#ff0000",
-    "success": "#00ff00",
-    "accent": "#00ff00",
-    "dark": True,
-}
 
-DEFAULT_COLORS["dark"] = ColorSystem(**DARK_THEME)
+deepgreen_theme = Theme(
+    name="deepgreen",
+    primary="#03A062",  # matrix green
+    secondary="#03A062",
+    warning="#03A062",
+    error="#ff0000",
+    success="#00ff00",
+    accent="#00ff00",
+    dark=True,
+    variables={
+        "block-cursor-text-style": "none",
+        "footer-key-foreground": "#88C0D0",
+        "input-selection-background": "#81a1c1 35%",
+    },
+)
 
 # fits table are displayed in small chunks (pages) to achieve better performances.
 # this parameter set the number of rows displayed per page within a FitsTable.
@@ -170,7 +175,7 @@ class FitsTable(DataTable):
         self.show_page()
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Checks if an action may run."""
+        """Checks if an action may run or not, if not greys them out in footer."""
         if action in ["first_page", "back_page"] and self.page_no == 1:
             return None
         if action in ["last_page", "next_page"] and self.page_no == self.page_tot:
@@ -399,6 +404,17 @@ class Misfits(App):
         self.fits_content = []
         self.logstack = []
 
+    # `push_screen_wait` requires a worker
+    @work
+    async def on_mount(self):
+        self.register_theme(deepgreen_theme)
+        self.theme = "deepgreen"
+        if not self.filepath:
+            self.filepath = await self.push_screen_wait(FileExplorerScreen(self.rootdir))
+        self.query_one(FileInput).set_input_value(str(self.filepath))
+        # noinspection PyAsyncCall
+        self.populate_tabs()
+
     def compose(self) -> ComposeResult:
         yield MainHeader()
         yield TabbedContent()
@@ -428,20 +444,11 @@ class Misfits(App):
     # this is to avoid having secondary key bindings to pop up in footer, when the footer
     # is already crowded, e.g., when going through the fits's table records
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Checks if an action may run or not, given the current focused widget."""
+        """Checks if an action may run or not, if not greys them out in footer."""
         _, labels, _ = zip(*self.BINDINGS)
         if action in labels and isinstance(self.focused, FitsTable):
             return False
         return True
-
-    # `push_screen_wait` requires a worker
-    @work
-    async def on_mount(self):
-        if not self.filepath:
-            self.filepath = await self.push_screen_wait(FileExplorerScreen(self.rootdir))
-        self.query_one(FileInput).set_input_value(str(self.filepath))
-        # noinspection PyAsyncCall
-        self.populate_tabs()
 
     # `populate_tabs` requires a worker
     @on(Input.Submitted)
