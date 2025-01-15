@@ -57,8 +57,9 @@ class InfoScreen(ModalScreen):
 
 class FileExplorerScreen(ModalScreen):
     """A pop-up screen showing a file explorer so that the user may choose an
-    input navigating the file system. To be used at main app's start-up,
-     if no input file is provided. For this reason the screen is not escapable."""
+    input navigating the file system.
+    To be used at main app's start-up, if no input file is provided.
+    For this reason the screen is not escapable without quitting."""
 
     BINDINGS = [("ctrl+q", "app.quit", "Quit")]
 

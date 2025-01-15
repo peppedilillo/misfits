@@ -23,6 +23,7 @@ from textual.design import ColorSystem
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
+from textual.theme import Theme
 from textual.widgets import DataTable
 from textual.widgets import Footer
 from textual.widgets import Input
@@ -32,7 +33,6 @@ from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
 from textual.widgets.tabbed_content import ContentTabs
-from textual.theme import Theme
 
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
@@ -44,10 +44,9 @@ from misfits.screens import FileExplorerScreen
 from misfits.screens import HeaderEntry
 from misfits.screens import InfoScreen
 from misfits.screens import LogScreen
+from misfits.suggester import PathSuggester
 from misfits.utils import catchtime
 from misfits.utils import disable_inputs
-from misfits.suggester import PathSuggester
-
 
 deepgreen_theme = Theme(
     name="deepgreen",

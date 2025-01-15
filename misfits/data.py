@@ -3,14 +3,15 @@ from pathlib import Path
 import re
 import warnings
 
-from astropy.io.fits.verify import VerifyWarning
 from astropy.io import fits
+from astropy.io.fits.verify import VerifyWarning
 from numpy import round
 from pandas import DataFrame
 from pandas import Index
 
 from misfits.log import log
-from misfits.mtypes import ColumnType, LogLevel
+from misfits.mtypes import ColumnType
+from misfits.mtypes import LogLevel
 
 
 def is_table(hdu: fits.FitsHDU):
@@ -63,8 +64,8 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
         # for the relevant astropy documentation, see:
         # https://docs.astropy.org/en/latest/io/fits/usage/verification.html
         with warnings.catch_warnings(
-                record=True,
-                category=VerifyWarning,
+            record=True,
+            category=VerifyWarning,
         ) as ws:
             hdul.verify("fix")
             log.push_verification_warning(ws)
