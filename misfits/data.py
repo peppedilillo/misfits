@@ -9,8 +9,8 @@ from numpy import round
 from pandas import DataFrame
 from pandas import Index
 
-from .log import log
-from .types import ColumnType, LogLevel
+from misfits.log import log
+from misfits.mtypes import ColumnType, LogLevel
 
 
 def is_table(hdu: fits.FitsHDU):

@@ -1,7 +1,26 @@
+* {
+  scrollbar-color: $surface-lighten-3;
+  scrollbar-color-hover: $primary 80%;
+  scrollbar-color-active: $primary;
+  scrollbar-background: $surface-darken-1;
+  scrollbar-background-hover: $surface-darken-1;
+  scrollbar-background-active: $surface-darken-1;
+  scrollbar-size-vertical: 1;
+  scrollbar-size-horizontal: 0;
+
+  &:focus {
+    scrollbar-color: $surface-lighten-3;
+  }
+}
+
 DataTable > .datatable--header {
   text-style: bold;
-  background: $accent 30%;
+  background: $primary 30%;
   color: $text;
+}
+
+DataTable > .datatable--cursor {
+  background: $accent 30%;
 }
 
 FitsTable {
@@ -40,6 +59,7 @@ EmptyDialog Label {
 }
 
 TabbedContent {
+  margin-top: 1;
   height: 1fr;  /* keeps loading indicator at center */
   background: $background;
 }
@@ -47,6 +67,10 @@ TabbedContent {
 TabPane {
   padding: 0;
   border: none;
+}
+
+Tabs .-active {
+  background: transparent;  /* disables block highlighting */
 }
 
 HeaderEntry {
@@ -140,7 +164,7 @@ FilterInput Input {
 
 Header {
   height: 1;
-  background: $primary 20%;
+  background: $footer-background;
 }
 
 Header Static {

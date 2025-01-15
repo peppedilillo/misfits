@@ -50,7 +50,7 @@ class MainHeader(Header):
         self.has_run_before = False
         super().__init__(
             left_label=EffectLabel(
-                text="  misfits",
+                text=" misfits",
                 effect="BinaryPath",
                 config={"final_gradient_stops": (Color("#ffffff"),)},
                 run_on_mount=False,

@@ -34,19 +34,19 @@ from textual.widgets import Tree
 from textual.widgets.tabbed_content import ContentTabs
 from textual.theme import Theme
 
-from .data import _validate_fits
-from .data import DataContainer
-from .data import get_fits_content
-from .headers import MainHeader
-from .log import log
-from .screens import EscapableFileExplorerScreen
-from .screens import FileExplorerScreen
-from .screens import HeaderEntry
-from .screens import InfoScreen
-from .screens import LogScreen
-from .utils import catchtime
-from .utils import disable_inputs
-from .suggester import PathSuggester
+from misfits.data import _validate_fits
+from misfits.data import DataContainer
+from misfits.data import get_fits_content
+from misfits.headers import MainHeader
+from misfits.log import log
+from misfits.screens import EscapableFileExplorerScreen
+from misfits.screens import FileExplorerScreen
+from misfits.screens import HeaderEntry
+from misfits.screens import InfoScreen
+from misfits.screens import LogScreen
+from misfits.utils import catchtime
+from misfits.utils import disable_inputs
+from misfits.suggester import PathSuggester
 
 
 deepgreen_theme = Theme(

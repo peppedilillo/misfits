@@ -2,7 +2,7 @@ from datetime import datetime
 
 from astropy.io.fits.verify import VerifyWarning
 
-from misfits.types import ColumnType, LogLevel
+from misfits.mtypes import ColumnType, LogLevel
 
 
 class Logger:
