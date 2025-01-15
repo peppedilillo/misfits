@@ -60,6 +60,8 @@ class FileExplorerScreen(ModalScreen):
     input navigating the file system. To be used at main app's start-up,
      if no input file is provided. For this reason the screen is not escapable."""
 
+    BINDINGS = [("ctrl+q", "app.quit", "Quit")]
+
     def __init__(self, rootdir: Path = Path.cwd()):
         super().__init__()
         self.rootdir = rootdir
