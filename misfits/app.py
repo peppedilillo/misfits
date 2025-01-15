@@ -522,6 +522,7 @@ def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Pa
     "input_path",
     type=click.Path(exists=True, path_type=Path),
     callback=click_validate_fits,
+    default=Path("."),
 )
 def main(input_path: Path):
     """Misfits is an interactive FITs viewer for the terminal."""
