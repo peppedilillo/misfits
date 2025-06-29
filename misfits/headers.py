@@ -3,13 +3,12 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Label
 from textual.widgets import Static
-from textualeffects.widgets import EffectLabel
 
 from misfits import __version__
 
 
-def labelize(arg: Label | EffectLabel | str | None):
-    if isinstance(arg, Label) or isinstance(arg, EffectLabel):
+def labelize(arg: Label | str | None):
+    if isinstance(arg, Label):
         return arg
     elif isinstance(arg, str):
         return Label(arg)
@@ -23,9 +22,9 @@ class Header(Static):
     def __init__(
         self,
         *,
-        left_label: Label | EffectLabel | str | None = None,
-        mid_label: Label | EffectLabel | str | None = None,
-        right_label: Label | EffectLabel | str | None = None,
+        left_label: Label | str | None = None,
+        mid_label: Label | str | None = None,
+        right_label: Label | str | None = None,
     ):
         self.left_label = labelize(left_label)
         self.mid_label = labelize(mid_label)
