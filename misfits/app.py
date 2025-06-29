@@ -503,7 +503,6 @@ class Misfits(App):
                     if content["is_table"]:
                         self.query_one(TabbedContent).active = tab_id
             log.push(f"Reading FITS file took {elapsed():.3f} s")
-        self.query_one(MainHeader).maybe_run_effect()
 
 
 def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Path) -> Path:

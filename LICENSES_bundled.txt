@@ -1,6 +1,0 @@
-The misfits repository bundle these compatibly licensed libraries:
-
-Name: textualeffects
-Files: misfits/textualeffects/*
-License: MIT
-  For details, see misfits/textualeffects/LICENSE.txt
