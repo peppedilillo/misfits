@@ -12,20 +12,20 @@ Renders best on modern terminals.
 
 ### Installation
 
+#### Installing with `pip`
+
 `pip install misfits`
 
 Make sure to be installing into a fresh python>=3.11 environment!
 
-#### Installing with uv
+#### Installing with `uv`
 
 `uv tool install misfits`
 
-If you like misfits, this is probably the best method. But you should install uv first, see the [docs](https://docs.astral.sh/uv/getting-started/installation/). Python 3.11 is also required.
-With the other methods, you are supposed to activate the misfits environment to use it.
-This won't, and you will be able to call misfits from terminal with one line: `misfits .`.
-
-If you are unsure about `uv`: don't, give it a try! 
-It is a great package manager from the [people](https://astral.sh/) behind ruff and other python tools.
+With the other methods, you are supposed to activate the misfits environment first to use it.
+Installing with uv you won't need that, and you will be able to call misfits from terminal with one line: `misfits`.
+If you are unsure about uv: don't, give it a [try](https://docs.astral.sh/uv/getting-started/installation/)!
+It is a great package manager from the people behind ruff and other python tools.
 
 #### Installing with anaconda
 
@@ -35,5 +35,8 @@ Will create a new environment and install `misfits` in it.
 
 ### Usage
 
-From the terminal, type `misfits path_to_file.fits` or `misfits .`. 
-The latter will open a prompt to choose a fits file from your current directory.
+From the terminal, run `misfits path_to_file.fits`, `misfits .`, or simply `misfits`. 
+
+### Contributing
+
+Found a bug? Want a feature? Open an issue, a PR, or post in the discussion section of this repo.
