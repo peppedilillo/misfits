@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "misfits"
-version = "0.0.8"
+version = "0.0.9"
 authors = [
     { name="Giuseppe Dilillo", email="peppedilillo@gmail.com" },
 ]
@@ -20,10 +20,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "astropy >= 7.0",
-    "pandas >= 2.2",
-    "textual >= 1.0",
-    "click >= 8.1",
+    "astropy == 7.1.0",
+    "pandas == 2.3.0",
+    "textual == 3.5.0",
+    "click == 8.2.1",
 ]
 
 [project.optional-dependencies]
