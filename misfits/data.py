@@ -172,13 +172,11 @@ class DataContainer:
         out = OrderedDict()
         for colname in self.displayable_columns:
             column = self._maybe_correct_endianess(table[colname])
-            if self.columns[colname] is ColumnType.VECTOR:
-                if column.dtype.kind == "f":
-                    # this is a workaround to Textual not applying cell formatting
-                    # recursively. TODO: improve this logic?
-                    column = round(column, 2)
-                column = column.tolist()
-            out[colname] = column
+            if self.columns[colname] is ColumnType.VECTOR and column.dtype.kind == "f":
+                # this is a workaround to Textual not applying cell formatting
+                # recursively. TODO: improve this logic?
+                column = round(column, 2)
+            out[colname] = column.tolist()
 
         df = DataFrame(out, index=None)
         return df
