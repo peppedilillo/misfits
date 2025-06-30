@@ -1,21 +1,15 @@
+import asyncio
+
 from rich.text import Text
+from terminaltexteffects import Color, Gradient
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Label
 from textual.widgets import Static
+from terminaltexteffects.effects.effect_binarypath import BinaryPath
 
 from misfits import __version__
-
-
-def labelize(arg: Label | str | None):
-    if isinstance(arg, Label):
-        return arg
-    elif isinstance(arg, str):
-        return Label(arg)
-    elif arg is None:
-        return None
-    else:
-        raise ValueError()
 
 
 class Header(Static):
@@ -26,9 +20,9 @@ class Header(Static):
         mid_label: Label | str | None = None,
         right_label: Label | str | None = None,
     ):
-        self.left_label = labelize(left_label)
-        self.mid_label = labelize(mid_label)
-        self.right_label = labelize(right_label)
+        self.left_label = Label(left_label) if isinstance(left_label, str) else left_label
+        self.mid_label = Label(mid_label) if isinstance(mid_label, str) else mid_label
+        self.right_label = Label(right_label) if isinstance(right_label, str) else right_label
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -43,10 +37,28 @@ class Header(Static):
                 yield self.right_label
 
 
+class AnimatedLabel(Static):
+    def __init__(self, text: str):
+        super().__init__()
+        self.text = text
+        effect = BinaryPath(self.text)
+        effect.effect_config.final_gradient_stops = Color("FFFFFF")
+        effect.effect_config.final_gradient_steps = 8
+        effect.terminal_config.canvas_height = 1
+        effect.terminal_config.canvas_width = len(self.text)
+        self.effect = effect
+
+    @work
+    async def play(self) -> None:
+        for frame in self.effect:
+            self.update(Text.from_ansi(frame))
+            await asyncio.sleep(0.)
+
+
 class MainHeader(Header):
     def __init__(self):
         self.has_run_before = False
         super().__init__(
-            left_label=" misfits",
+            left_label=AnimatedLabel(" misfits"),
             right_label=Label(Text.from_markup(f"[italic dim]v.{__version__} ")),
         )

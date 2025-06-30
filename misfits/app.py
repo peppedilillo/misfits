@@ -37,7 +37,7 @@ from textual.widgets.tabbed_content import ContentTabs
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
 from misfits.data import get_fits_content
-from misfits.headers import MainHeader
+from misfits.headers import MainHeader, AnimatedLabel
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
@@ -84,7 +84,6 @@ class FitsTable(DataTable):
 
     class QuerySucceded(Message):
         """A message to be sent when a query completes."""
-
         def __init__(self, query_succeded: bool) -> None:
             self.value = query_succeded
             super().__init__()
@@ -482,7 +481,7 @@ class Misfits(App):
 
     # calls CPU-heavy `get_fits_content`, requiring a worker
     # exclusive because otherwise would result in an error everytime we attempt
-    # to open a new while one is still loading.
+    # to open a new one while still loading.
     @work(exclusive=True)
     async def populate_tabs(self) -> None:
         """
@@ -503,6 +502,8 @@ class Misfits(App):
                     if content["is_table"]:
                         self.query_one(TabbedContent).active = tab_id
             log.push(f"Reading FITS file took {elapsed():.3f} s")
+        # play little logo animation
+        self.query_one(AnimatedLabel).play()
 
 
 def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Path) -> Path:
