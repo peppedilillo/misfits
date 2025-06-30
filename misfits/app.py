@@ -37,7 +37,8 @@ from textual.widgets.tabbed_content import ContentTabs
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
 from misfits.data import get_fits_content
-from misfits.headers import MainHeader, AnimatedLabel
+from misfits.headers import AnimatedLabel
+from misfits.headers import MainHeader
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
@@ -84,6 +85,7 @@ class FitsTable(DataTable):
 
     class QuerySucceded(Message):
         """A message to be sent when a query completes."""
+
         def __init__(self, query_succeded: bool) -> None:
             self.value = query_succeded
             super().__init__()
@@ -123,7 +125,9 @@ class FitsTable(DataTable):
         self.page_tot = max(ceil(len(self.data) / self.page_len), 1)
         self.show_page()
         self.post_message(self.QuerySucceded(True))
-        log.push(f"Filtered table by query {repr(query)}, {len(self.data)} matching entries.")
+        log.push(
+            f"Filtered table by query {repr(query)}, {len(self.data)} matching entries."
+        )
 
     def page_slice(self):
         """Returns a slice comprising entries to be displayed in present page."""
@@ -287,7 +291,11 @@ class HeaderDialog(Tree):
         self.leafs = []
         for key, value in header.items():
             node = self.root.add(label=key)
-            label = vstr if len(vstr := str(value).strip()) < ellipsis else vstr[:ellipsis] + ".."
+            label = (
+                vstr
+                if len(vstr := str(value).strip()) < ellipsis
+                else vstr[:ellipsis] + ".."
+            )
             leaf = node.add_leaf(label, data=str(value))
             self.leafs.append(leaf)
 
@@ -342,7 +350,11 @@ class HDUPane(TabPane):
     @on(TabPane.Focused)
     def notify(self, _: TabPane.Focused) -> None:
         """This will alert main app to notify we are on a table with limitations."""
-        if not self.focused_already and self.content["is_table"] and not self.query_one(FitsTable).data.can_promote:
+        if (
+            not self.focused_already
+            and self.content["is_table"]
+            and not self.query_one(FitsTable).data.can_promote
+        ):
             self.post_message(self.FocusedUnpromotableTable(self.content["name"]))
         self.focused_already = True
 
@@ -408,7 +420,9 @@ class Misfits(App):
         self.register_theme(deepgreen_theme)
         self.theme = "deepgreen"
         if not self.filepath:
-            self.filepath = await self.push_screen_wait(FileExplorerScreen(self.rootdir))
+            self.filepath = await self.push_screen_wait(
+                FileExplorerScreen(self.rootdir)
+            )
         self.query_one(FileInput).set_input_value(str(self.filepath))
         # noinspection PyAsyncCall
         self.populate_tabs()
@@ -421,7 +435,9 @@ class Misfits(App):
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         # skips light mode toggle since, at present, it will mess with CSS and headers
-        yield from (c for c in super().get_system_commands(screen) if c.title != "Light mode")
+        yield from (
+            c for c in super().get_system_commands(screen) if c.title != "Light mode"
+        )
         yield SystemCommand(
             "Show log",
             "Displays a log of misfits operations.",
@@ -473,7 +489,9 @@ class Misfits(App):
     # `push_screen_wait` requires a worker
     @work
     async def action_open_explorer(self):
-        self.filepath = await self.push_screen_wait(EscapableFileExplorerScreen(self.rootdir))
+        self.filepath = await self.push_screen_wait(
+            EscapableFileExplorerScreen(self.rootdir)
+        )
         # noinspection PyAsyncCall
         self.populate_tabs()
         self.query_one(FileInput).set_input_value(str(self.filepath))
@@ -506,12 +524,15 @@ class Misfits(App):
         self.query_one(AnimatedLabel).play()
 
 
-def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Path) -> Path:
+def click_validate_fits(
+    ctx: click.Context, param: click.Parameter, filepath: Path
+) -> Path:
     """Click callback validator."""
     if filepath.is_file() and not _validate_fits(filepath):
         raise click.FileError(
             f"Invalid input.",
-            hint="Please, check misfits `INPUT_PATH` argument " "and make sure it points to a FITS file.",
+            hint="Please, check misfits `INPUT_PATH` argument "
+            "and make sure it points to a FITS file.",
         )
     return filepath
 
@@ -525,7 +546,9 @@ def click_validate_fits(ctx: click.Context, param: click.Parameter, filepath: Pa
 )
 def main(input_path: Path):
     """Misfits is an interactive FITs viewer for the terminal."""
-    filepath, rootdir = (None, input_path) if input_path.is_dir() else (input_path, Path.cwd())
+    filepath, rootdir = (
+        (None, input_path) if input_path.is_dir() else (input_path, Path.cwd())
+    )
     Misfits(filepath, rootdir).run(inline=False)
 
 

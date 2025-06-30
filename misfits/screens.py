@@ -44,7 +44,7 @@ class InfoScreen(ModalScreen):
     @staticmethod
     def get_text():
         return Text.from_markup(
-            f"   A FITS table viewer. [italic]~p24[/].\n" 
+            f"   A FITS table viewer. [italic]~p24[/].\n"
             f"   [dim]https://github.com/peppedilillo - https://gdilillo.com\n",
         )
 

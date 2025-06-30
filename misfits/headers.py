@@ -1,13 +1,14 @@
 import asyncio
 
 from rich.text import Text
-from terminaltexteffects import Color, Gradient
+from terminaltexteffects import Color
+from terminaltexteffects import Gradient
+from terminaltexteffects.effects.effect_binarypath import BinaryPath
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Label
 from textual.widgets import Static
-from terminaltexteffects.effects.effect_binarypath import BinaryPath
 
 from misfits import __version__
 
@@ -20,9 +21,13 @@ class Header(Static):
         mid_label: Label | str | None = None,
         right_label: Label | str | None = None,
     ):
-        self.left_label = Label(left_label) if isinstance(left_label, str) else left_label
+        self.left_label = (
+            Label(left_label) if isinstance(left_label, str) else left_label
+        )
         self.mid_label = Label(mid_label) if isinstance(mid_label, str) else mid_label
-        self.right_label = Label(right_label) if isinstance(right_label, str) else right_label
+        self.right_label = (
+            Label(right_label) if isinstance(right_label, str) else right_label
+        )
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -52,7 +57,7 @@ class AnimatedLabel(Static):
     async def play(self) -> None:
         for frame in self.effect:
             self.update(Text.from_ansi(frame))
-            await asyncio.sleep(0.)
+            await asyncio.sleep(0.0)
 
 
 class MainHeader(Header):
