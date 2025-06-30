@@ -12,7 +12,7 @@ description = "A FITS table viewer for the terminal."
 keywords = ["FITS", "Flexible Image Transport System", "Astrophysics"]
 readme = "README.md"
 license = {file = "LICENSE.txt"}
-requires-python = "==3.13.5"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
