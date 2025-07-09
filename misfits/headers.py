@@ -48,7 +48,7 @@ class AnimatedLabel(Static):
         self.text = text
         effect = BinaryPath(self.text)
         effect.effect_config.final_gradient_stops = Color("FFFFFF")
-        effect.effect_config.final_gradient_steps = 8
+        effect.effect_config.final_gradient_steps = 10
         effect.terminal_config.canvas_height = 1
         effect.terminal_config.canvas_width = len(self.text)
         self.effect = effect
