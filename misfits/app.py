@@ -19,7 +19,6 @@ from textual.app import App
 from textual.app import ComposeResult
 from textual.app import SystemCommand
 from textual.containers import Horizontal
-from textual.design import ColorSystem
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -32,13 +31,13 @@ from textual.widgets import Static
 from textual.widgets import TabbedContent
 from textual.widgets import TabPane
 from textual.widgets import Tree
-from textual.widgets.tabbed_content import ContentTabs
 
 from misfits.data import _validate_fits
 from misfits.data import DataContainer
 from misfits.data import get_fits_content
 from misfits.headers import AnimatedLabel
 from misfits.headers import MainHeader
+from misfits.data import FitsHeader
 from misfits.log import log
 from misfits.screens import EscapableFileExplorerScreen
 from misfits.screens import FileExplorerScreen
@@ -275,6 +274,7 @@ class EmptyDialog(Static):
         self.border_title = "Table"
 
 
+
 class HeaderDialog(Tree):
     """Displays a FITS header as a tree."""
 
@@ -282,21 +282,25 @@ class HeaderDialog(Tree):
         ("ctrl+s", "colexp_all", "Collapse/Expand all"),
     ]
 
-    def __init__(self, header: dict, ellipsis: int = 14):
+    def __init__(self, header: FitsHeader, ellipsis: int = 14):
         """
         :param header:
         :param ellipsis: sets length after which apply an ellipsis.
         """
-        super().__init__(label="root")
+        super().__init__(label="Header")
         self.leafs = []
-        for key, value in header.items():
+        for key, value, comment in zip(
+            header.keys(),
+            header.values(),
+            header.comments,
+        ):
             node = self.root.add(label=key)
             label = (
                 vstr
                 if len(vstr := str(value).strip()) < ellipsis
                 else vstr[:ellipsis] + ".."
             )
-            leaf = node.add_leaf(label, data=str(value))
+            leaf = node.add_leaf(label, data=(key, str(value), comment))
             self.leafs.append(leaf)
 
     def on_mount(self):
@@ -309,7 +313,8 @@ class HeaderDialog(Tree):
     def display_content_popup(self, event: Tree.NodeSelected):
         """Opens a pop-up when a header entry is selected."""
         if event.node in self.leafs:
-            self.app.push_screen(HeaderEntry(event.node.data))
+            key, value, comment = event.node.data
+            self.app.push_screen(HeaderEntry(f"key:     {key}\nvalue:   {value}\ncomment: \n{comment}"))
 
     def action_colexp_all(self):
         """Collaps or expand all header nodes together."""

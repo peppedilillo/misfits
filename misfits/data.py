@@ -4,6 +4,7 @@ import re
 import warnings
 
 from astropy.io import fits
+from astropy.io.fits.header import Header as FitsHeader
 from astropy.io.fits.verify import VerifyWarning
 from numpy import round
 from pandas import DataFrame
@@ -11,7 +12,6 @@ from pandas import Index
 
 from misfits.log import log
 from misfits.mtypes import ColumnType
-from misfits.mtypes import LogLevel
 
 
 def is_table(hdu: fits.FitsHDU):
@@ -54,6 +54,7 @@ def get_column_type(tform: str) -> ColumnType:
         return ColumnType.VECTOR
 
 
+
 async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
     """Retrieves content from a FITS file and stores it in a tuple dict.
     Each tuple's records referes to one FITS HDU.
@@ -74,7 +75,7 @@ async def get_fits_content(fits_path: str | Path) -> tuple[dict]:
                 {
                     "name": hdu.name,
                     "type": hdu.__class__.__name__,
-                    "header": dict(hdu.header) if hdu.header else None,
+                    "header": hdu.header if hdu.header else None,
                     "is_table": (ist := is_table(hdu)),
                     "data": hdu.data if ist else None,
                 }

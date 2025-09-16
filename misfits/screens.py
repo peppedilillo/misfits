@@ -111,5 +111,5 @@ class HeaderEntry(ModalScreen):
     def compose(self) -> ComposeResult:
         with Container():
             yield Header(mid_label="Header entry")
-            yield TextArea.code_editor(self.text, read_only=True)
+            yield TextArea.code_editor(self.text, read_only=True, soft_wrap=True, show_line_numbers=False)
         yield Footer()
