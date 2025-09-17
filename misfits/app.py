@@ -287,7 +287,7 @@ class HeaderDialog(Tree):
         :param header:
         :param ellipsis: sets length after which apply an ellipsis.
         """
-        super().__init__(label="Header")
+        super().__init__(label="root")
         self.leafs = []
         for key, value, comment in zip(
             header.keys(),
