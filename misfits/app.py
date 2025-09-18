@@ -364,9 +364,6 @@ class HDUPane(TabPane):
         self.focused_already = True
 
 
-BROWSE_FILE_LABEL = "Browse files"
-
-
 class FileInput(Static):
     """A widget showing an input for file paths."""
 
@@ -402,7 +399,7 @@ class Misfits(App):
         "info": InfoScreen,
     }
     BINDINGS = [
-        ("ctrl+o", "open_explorer", BROWSE_FILE_LABEL),
+        ("ctrl+o", "open_explorer", "Browse files"),
         ("ctrl+l", "show_log", "Log"),
         ("ctrl+j", "show_info", "Info"),
     ]
