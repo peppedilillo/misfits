@@ -61,6 +61,7 @@ class FileExplorerScreen(ModalScreen):
     To be used at main app's start-up, if no input file is provided.
     For this reason the screen is not escapable without quitting."""
 
+    # this is not really needed, but will show an useful tooltip at footer
     BINDINGS = [("ctrl+q", "app.quit", "Quit")]
 
     def __init__(self, rootdir: Path = Path.cwd()):
