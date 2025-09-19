@@ -5,6 +5,7 @@ from typing import Iterable
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import DirectoryTree
@@ -62,7 +63,7 @@ class FileExplorerScreen(ModalScreen):
     For this reason the screen is not escapable without quitting."""
 
     # this is not really needed, but will show an useful tooltip at footer
-    BINDINGS = [("ctrl+q", "app.quit", "Quit")]
+    BINDINGS = [Binding("escape", "app.quit", "Quit")]
 
     def __init__(self, rootdir: Path = Path.cwd()):
         super().__init__()
@@ -90,7 +91,7 @@ class EscapableFileExplorerScreen(FileExplorerScreen):
     """Like `FileExplorer` but with bindings to leave the screen.
     To be used when a file input has already been provided."""
 
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+    BINDINGS = [Binding("escape", "app.pop_screen", "Return to dashboard")]
 
 
 class FilteredDirectoryTree(DirectoryTree):
@@ -103,7 +104,7 @@ class FilteredDirectoryTree(DirectoryTree):
 class HeaderEntry(ModalScreen):
     """Displays header's entries in a pop-up screen. Useful with long entries."""
 
-    BINDINGS = [("escape", "app.pop_screen", "Return to dashboard")]
+    BINDINGS = [Binding("escape", "app.pop_screen", "Return to dashboard")]
 
     def __init__(self, text: str):
         super().__init__()

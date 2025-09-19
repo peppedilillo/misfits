@@ -18,6 +18,7 @@ from textual import work
 from textual.app import App
 from textual.app import ComposeResult
 from textual.app import SystemCommand
+from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.message import Message
 from textual.reactive import reactive
@@ -73,10 +74,10 @@ class FitsTable(DataTable):
     """Displays fits data as a table arranged in pages."""
 
     BINDINGS = [
-        ("shift+left", "back_page()", "Back"),
-        ("shift+right", "next_page()", "Next"),
-        ("shift+up", "first_page()", "First"),
-        ("shift+down", "last_page()", "Last"),
+        Binding("shift+left", "back_page()", "Back"),
+        Binding("shift+right", "next_page()", "Next"),
+        Binding("shift+up", "first_page()", "First"),
+        Binding("shift+down", "last_page()", "Last"),
     ]
     PAGE_DELAY = 1 / 60
 
@@ -186,14 +187,11 @@ class FitsTable(DataTable):
     # TODO: add methods and binding for scrolling to `n` page.
 
 
-CLEAR_PROMPT_LABEL = "Clear"
-
-
 class FilterInput(Static):
     """A widget displaying an input prompt for filtering a table"""
 
     BINDINGS = [
-        ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
+        Binding("ctrl+n", "clear()", "Clear"),
     ]
 
     class ClearTable(Message):
@@ -279,7 +277,7 @@ class HeaderDialog(Tree):
     """Displays a FITS header as a tree."""
 
     BINDINGS = [
-        ("ctrl+s", "colexp_all", "Collapse/Expand all"),
+        Binding("ctrl+s", "colexp_all", "Collapse/Expand all"),
     ]
 
     def __init__(self, header: FitsHeader, ellipsis: int = 14):
@@ -368,7 +366,7 @@ class FileInput(Static):
     """A widget showing an input for file paths."""
 
     BINDINGS = [
-        ("ctrl+n", "clear()", CLEAR_PROMPT_LABEL),
+        Binding("ctrl+n", "clear()", "Clear"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -389,19 +387,21 @@ class FileInput(Static):
         self.query_one(Input).value = ""
 
 
-class Misfits(App):
+class Misfits(App, inherit_bindings=False):
     """Misfits, the main app."""
-
     CSS_PATH = "misfits.tcss"
+    ENABLE_COMMAND_PALETTE = False
     SCREENS = {
         "log": LogScreen,
         "file_explorer": FileExplorerScreen,
         "info": InfoScreen,
     }
     BINDINGS = [
-        ("ctrl+o", "open_explorer", "Browse files"),
-        ("ctrl+l", "show_log", "Log"),
-        ("ctrl+j", "show_info", "Info"),
+        Binding("escape", "quit", "Quit"),
+        Binding("ctrl+c", "help_quit", show=False, system=True),
+        Binding("ctrl+o", "open_explorer", "Browse files"),
+        Binding("ctrl+l", "show_log", "Log"),
+        Binding("ctrl+j", "show_info", "Info"),
     ]
 
     def __init__(self, filepath: Path | None, root_dir: Path = Path.cwd()) -> None:
@@ -451,6 +451,13 @@ class Misfits(App):
             lambda: self.push_screen("info"),
         )
 
+    def action_help_quit(self) -> None:
+        """From textual /src/textual/app.py#L3807."""
+        for key, active_binding in self.active_bindings.items():
+            if active_binding.binding.action in ("quit", "app.quit"):
+                self.notify(f"Press [b]{key}[/b] to quit the app", title="Do you want to quit?")
+                return
+
     def action_show_log(self):
         self.push_screen("log")
 
@@ -461,8 +468,7 @@ class Misfits(App):
     # is already crowded, e.g., when going through the fits's table records
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Checks if an action may run or not, if not greys them out in footer."""
-        _, labels, _ = zip(*self.BINDINGS)
-        if action in labels and isinstance(self.focused, FitsTable):
+        if action in [b.description for b in self.BINDINGS] and isinstance(self.focused, FitsTable):
             return False
         return True
 

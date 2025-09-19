@@ -2,7 +2,6 @@ import asyncio
 
 from rich.text import Text
 from terminaltexteffects import Color
-from terminaltexteffects import Gradient
 from terminaltexteffects.effects.effect_binarypath import BinaryPath
 from textual import work
 from textual.app import ComposeResult
